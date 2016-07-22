@@ -1780,12 +1780,28 @@ static void ipmi_sim_realize(DeviceState *dev, Error **errp)
     vmstate_register(NULL, 0, &vmstate_ipmi_sim, ibs);
 }
 
+static void ipmi_sim_unrealize(DeviceState *dev, Error **errp)
+{
+    IPMIBmc *b = IPMI_BMC(dev);
+    IPMIRcvBufEntry *msg, *tmp;
+    IPMIBmcSim *ibs = IPMI_BMC_SIMULATOR(b);
+
+    vmstate_unregister(NULL, &vmstate_ipmi_sim, ibs);
+    timer_del(ibs->timer);
+    timer_free(ibs->timer);
+    QTAILQ_FOREACH_SAFE(msg, &ibs->rcvbufs, entry, tmp) {
+        QTAILQ_REMOVE(&ibs->rcvbufs, msg, entry);
+        g_free(msg);
+    }
+}
+
 static void ipmi_sim_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     IPMIBmcClass *bk = IPMI_BMC_CLASS(oc);
 
     dc->realize = ipmi_sim_realize;
+    dc->unrealize = ipmi_sim_unrealize;
     bk->handle_command = ipmi_sim_handle_command;
 }
 
