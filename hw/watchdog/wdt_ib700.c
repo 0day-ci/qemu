@@ -117,6 +117,17 @@ static void wdt_ib700_realize(DeviceState *dev, Error **errp)
     portio_list_add(&s->port_list, isa_address_space_io(&s->parent_obj), 0);
 }
 
+static void wdt_ib700_unrealize(DeviceState *dev, Error **errp)
+{
+    IB700State *s = IB700(dev);
+
+    timer_del(s->timer);
+    timer_free(s->timer);
+    s->timer = NULL;
+    portio_list_del(&s->port_list);
+    portio_list_destroy(&s->port_list);
+}
+
 static void wdt_ib700_reset(DeviceState *dev)
 {
     IB700State *s = IB700(dev);
@@ -136,6 +147,7 @@ static void wdt_ib700_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = wdt_ib700_realize;
+    dc->unrealize = wdt_ib700_unrealize;
     dc->reset = wdt_ib700_reset;
     dc->vmsd = &vmstate_ib700;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
