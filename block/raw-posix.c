@@ -435,6 +435,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     s->fd = -1;
     fd = qemu_open(filename, s->open_flags, 0644);
     if (fd < 0) {
+        error_setg_errno(errp, errno, "Could not open file");
         ret = -errno;
         if (ret == -EROFS) {
             ret = -EACCES;
