@@ -36,6 +36,8 @@
 
 #define COMPARE_READ_LEN_MAX NET_BUFSIZE
 #define MAX_QUEUE_SIZE 1024
+/* TODO: Should be configurable */
+#define REGULAR_PACKET_CHECK_MS 3000
 
 /*
   + CompareState ++
@@ -83,6 +85,10 @@ typedef struct CompareState {
     GQueue unprocessed_connections;
     /* proxy current hash size */
     uint32_t hashtable_size;
+    /* compare thread, a thread for each NIC */
+    QemuThread thread;
+    /* Timer used on the primary to find packets that are never matched */
+    QEMUTimer *timer;
 } CompareState;
 
 typedef struct CompareClass {
@@ -170,6 +176,112 @@ static int packet_enqueue(CompareState *s, int mode)
     return 0;
 }
 
+/*
+ * The IP packets sent by primary and secondary
+ * will be compared in here
+ * TODO support ip fragment, Out-Of-Order
+ * return:    0  means packet same
+ *            > 0 || < 0 means packet different
+ */
+static int colo_packet_compare(Packet *ppkt, Packet *spkt)
+{
+    trace_colo_compare_ip_info(ppkt->size, inet_ntoa(ppkt->ip->ip_src),
+                               inet_ntoa(ppkt->ip->ip_dst), spkt->size,
+                               inet_ntoa(spkt->ip->ip_src),
+                               inet_ntoa(spkt->ip->ip_dst));
+
+    if (ppkt->size == spkt->size) {
+        return memcmp(ppkt->data, spkt->data, spkt->size);
+    } else {
+        return -1;
+    }
+}
+
+static int colo_packet_compare_all(Packet *spkt, Packet *ppkt)
+{
+    trace_colo_compare_main("compare all");
+    return colo_packet_compare(ppkt, spkt);
+}
+
+static void colo_old_packet_check_one(void *opaque_packet,
+                                      void *opaque_found)
+{
+    int64_t now;
+    bool *found_old = (bool *)opaque_found;
+    Packet *ppkt = (Packet *)opaque_packet;
+
+    if (*found_old) {
+        /* Someone found an old packet earlier in the queue */
+        return;
+    }
+
+    now = qemu_clock_get_ms(QEMU_CLOCK_HOST);
+    if ((now - ppkt->creation_ms) > REGULAR_PACKET_CHECK_MS) {
+        trace_colo_old_packet_check_found(ppkt->creation_ms);
+        *found_old = true;
+    }
+}
+
+static void colo_old_packet_check_one_conn(void *opaque,
+                                           void *user_data)
+{
+    bool found_old = false;
+    Connection *conn = opaque;
+
+    g_queue_foreach(&conn->primary_list, colo_old_packet_check_one,
+                    &found_old);
+    if (found_old) {
+        /* do checkpoint will flush old packet */
+        /* TODO: colo_notify_checkpoint();*/
+    }
+}
+
+/*
+ * Look for old packets that the secondary hasn't matched,
+ * if we have some then we have to checkpoint to wake
+ * the secondary up.
+ */
+static void colo_old_packet_check(void *opaque)
+{
+    CompareState *s = opaque;
+
+    g_queue_foreach(&s->conn_list, colo_old_packet_check_one_conn, NULL);
+}
+
+/*
+ * called from the compare thread on the primary
+ * for compare connection
+ */
+static void colo_compare_connection(void *opaque, void *user_data)
+{
+    CompareState *s = user_data;
+    Connection *conn = opaque;
+    Packet *pkt = NULL;
+    GList *result = NULL;
+    int ret;
+
+    while (!g_queue_is_empty(&conn->primary_list) &&
+           !g_queue_is_empty(&conn->secondary_list)) {
+        pkt = g_queue_pop_tail(&conn->primary_list);
+        result = g_queue_find_custom(&conn->secondary_list,
+                              pkt, (GCompareFunc)colo_packet_compare_all);
+
+        if (result) {
+            ret = compare_chr_send(s->chr_out, pkt->data, pkt->size);
+            if (ret < 0) {
+                error_report("colo_send_primary_packet failed");
+            }
+            trace_colo_compare_main("packet same and release packet");
+            g_queue_remove(&conn->secondary_list, result->data);
+        } else {
+            trace_colo_compare_main("packet different");
+            g_queue_push_tail(&conn->primary_list, pkt);
+            /* TODO: colo_notify_checkpoint();*/
+            break;
+        }
+    }
+}
+
 static int compare_chr_send(CharDriverState *out,
                             const uint8_t *buf,
                             uint32_t size)
@@ -195,6 +307,65 @@ static int compare_chr_send(CharDriverState *out,
 
 err:
     return ret < 0 ? ret : -EIO;
+}
+
+static int compare_chr_can_read(void *opaque)
+{
+    return COMPARE_READ_LEN_MAX;
+}
+
+/*
+ * called from the main thread on the primary for packets
+ * arriving over the socket from the primary.
+ */
+static void compare_pri_chr_in(void *opaque, const uint8_t *buf, int size)
+{
+    CompareState *s = COLO_COMPARE(opaque);
+    int ret;
+
+    ret = net_fill_rstate(&s->pri_rs, buf, size);
+    if (ret == -1) {
+        qemu_chr_add_handlers(s->chr_pri_in, NULL, NULL, NULL, NULL);
+        error_report("colo-compare primary_in error");
+    }
+}
+
+/*
+ * called from the main thread on the primary for packets
+ * arriving over the socket from the secondary.
+ */
+static void compare_sec_chr_in(void *opaque, const uint8_t *buf, int size)
+{
+    CompareState *s = COLO_COMPARE(opaque);
+    int ret;
+
+    ret = net_fill_rstate(&s->sec_rs, buf, size);
+    if (ret == -1) {
+        qemu_chr_add_handlers(s->chr_sec_in, NULL, NULL, NULL, NULL);
+        error_report("colo-compare secondary_in error");
+    }
+}
+
+static void *colo_compare_thread(void *opaque)
+{
+    GMainContext *worker_context;
+    GMainLoop *compare_loop;
+    CompareState *s = opaque;
+
+    worker_context = g_main_context_new();
+
+    qemu_chr_add_handlers_full(s->chr_pri_in, compare_chr_can_read,
+                          compare_pri_chr_in, NULL, s, worker_context);
+    qemu_chr_add_handlers_full(s->chr_sec_in, compare_chr_can_read,
+                          compare_sec_chr_in, NULL, s, worker_context);
+
+    compare_loop = g_main_loop_new(worker_context, FALSE);
+
+    g_main_loop_run(compare_loop);
+
+    g_main_loop_unref(compare_loop);
+    g_main_context_unref(worker_context);
+    return NULL;
 }
 
 static char *compare_get_pri_indev(Object *obj, Error **errp)
@@ -249,6 +420,9 @@ static void compare_pri_rs_finalize(SocketReadState *pri_rs)
     if (packet_enqueue(s, PRIMARY_IN)) {
         trace_colo_compare_main("primary: unsupported packet in");
         compare_chr_send(s->chr_out, pri_rs->buf, pri_rs->packet_len);
+    } else {
+        /* compare connection */
+        g_queue_foreach(&s->conn_list, colo_compare_connection, s);
     }
 }
 
@@ -258,7 +432,24 @@ static void compare_sec_rs_finalize(SocketReadState *sec_rs)
 
     if (packet_enqueue(s, SECONDARY_IN)) {
         trace_colo_compare_main("secondary: unsupported packet in");
+    } else {
+        /* compare connection */
+        g_queue_foreach(&s->conn_list, colo_compare_connection, s);
     }
+}
+
+/*
+ * Check old packet regularly so it can watch for any packets
+ * that the secondary hasn't produced equivalents of.
+ */
+static void check_old_packet_regular(void *opaque)
+{
+    CompareState *s = opaque;
+
+    timer_mod(s->timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
+              REGULAR_PACKET_CHECK_MS);
+    /* if have old packet we will notify checkpoint */
+    colo_old_packet_check(s);
 }
 
 /*
@@ -268,6 +459,8 @@ static void compare_sec_rs_finalize(SocketReadState *sec_rs)
 static void colo_compare_complete(UserCreatable *uc, Error **errp)
 {
     CompareState *s = COLO_COMPARE(uc);
+    char thread_name[64];
+    static int compare_id;
 
     if (!s->pri_indev || !s->sec_indev || !s->outdev) {
         error_setg(errp, "colo compare needs 'primary_in' ,"
@@ -319,6 +512,18 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
                                                       g_free,
                                                       connection_destroy);
 
+    sprintf(thread_name, "compare %d", compare_id);
+    qemu_thread_create(&s->thread, thread_name,
+                       colo_compare_thread, s,
+                       QEMU_THREAD_JOINABLE);
+    compare_id++;
+
+    /* A regular timer to kick any packets that the secondary doesn't match */
+    s->timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, /* Only when guest runs */
+                            check_old_packet_regular, s);
+    timer_mod(s->timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
+                        REGULAR_PACKET_CHECK_MS);
+
     return;
 }
 
@@ -359,6 +564,13 @@ static void colo_compare_finalize(Object *obj)
     }
 
     g_queue_free(&s->conn_list);
+
+    if (s->thread.thread) {
+        /* compare connection */
+        g_queue_foreach(&s->conn_list, colo_compare_connection, s);
+        qemu_thread_join(&s->thread);
+    }
+    timer_del(s->timer);
 
     g_free(s->pri_indev);
     g_free(s->sec_indev);
