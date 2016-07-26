@@ -2846,7 +2846,6 @@ static void gen_conditional_store(DisasContext *ctx, TCGv EA,
                                   int reg, int size)
 {
     TCGv t0 = tcg_temp_new();
-    uint32_t save_exception = ctx->exception;
 
     tcg_gen_st_tl(EA, cpu_env, offsetof(CPUPPCState, reserve_ea));
     tcg_gen_movi_tl(t0, (size << 5) | reg);
