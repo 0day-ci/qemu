@@ -2674,6 +2674,11 @@ static void gen_lmw(DisasContext *ctx)
 {
     TCGv t0;
     TCGv_i32 t1;
+
+    if (ctx->le_mode) {
+        gen_align_no_le(ctx);
+        return;
+    }
     gen_set_access_type(ctx, ACCESS_INT);
     t0 = tcg_temp_new();
     t1 = tcg_const_i32(rD(ctx->opcode));
@@ -2688,6 +2693,11 @@ static void gen_stmw(DisasContext *ctx)
 {
     TCGv t0;
     TCGv_i32 t1;
+
+    if (ctx->le_mode) {
+        gen_align_no_le(ctx);
+        return;
+    }
     gen_set_access_type(ctx, ACCESS_INT);
     t0 = tcg_temp_new();
     t1 = tcg_const_i32(rS(ctx->opcode));
@@ -2714,6 +2724,10 @@ static void gen_lswi(DisasContext *ctx)
     int ra = rA(ctx->opcode);
     int nr;
 
+    if (ctx->le_mode) {
+        gen_align_no_le(ctx);
+        return;
+    }
     if (nb == 0)
         nb = 32;
     nr = (nb + 3) / 4;
@@ -2737,6 +2751,11 @@ static void gen_lswx(DisasContext *ctx)
 {
     TCGv t0;
     TCGv_i32 t1, t2, t3;
+
+    if (ctx->le_mode) {
+        gen_align_no_le(ctx);
+        return;
+    }
     gen_set_access_type(ctx, ACCESS_INT);
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
@@ -2756,6 +2775,11 @@ static void gen_stswi(DisasContext *ctx)
     TCGv t0;
     TCGv_i32 t1, t2;
     int nb = NB(ctx->opcode);
+
+    if (ctx->le_mode) {
+        gen_align_no_le(ctx);
+        return;
+    }
     gen_set_access_type(ctx, ACCESS_INT);
     t0 = tcg_temp_new();
     gen_addr_register(ctx, t0);
@@ -2774,6 +2798,11 @@ static void gen_stswx(DisasContext *ctx)
 {
     TCGv t0;
     TCGv_i32 t1, t2;
+
+    if (ctx->le_mode) {
+        gen_align_no_le(ctx);
+        return;
+    }
     gen_set_access_type(ctx, ACCESS_INT);
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
