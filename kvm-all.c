@@ -986,6 +986,10 @@ void kvm_irqchip_commit_routes(KVMState *s)
 {
     int ret;
 
+    if (!s->irq_routes) {
+        return;
+    }
+
     s->irq_routes->flags = 0;
     ret = kvm_vm_ioctl(s, KVM_SET_GSI_ROUTING, s->irq_routes);
     assert(ret == 0);
