@@ -579,8 +579,9 @@ struct ARMCPU {
     bool powered_off;
     /* CPU has security extension */
     bool has_el3;
-    /* CPU has PMU (Performance Monitor Unit) */
-    bool has_pmu;
+
+    /* CPU has vPMU (Performance Monitor Unit) support */
+    bool enable_pmu;
 
     /* CPU has memory protection unit */
     bool has_mpu;
