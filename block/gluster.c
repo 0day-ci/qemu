@@ -14,6 +14,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qemu/uri.h"
 #include "qemu/error-report.h"
+#include "qemu/cutils.h"
 
 #define GLUSTER_OPT_FILENAME        "filename"
 #define GLUSTER_OPT_VOLUME          "volume"
@@ -318,6 +319,7 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
     int ret;
     int old_errno;
     GlusterServerList *server;
+    long long unsigned port;
 
     glfs = glfs_new(gconf->volume);
     if (!glfs) {
@@ -330,10 +332,16 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
                                    GlusterTransport_lookup[server->value->type],
                                    server->value->u.q_unix.path, 0);
         } else {
+            if (parse_uint_full(server->value->u.tcp.port, &port, 0) < 0) {
+                error_setg(errp, "can't convert port to a number: %s",
+                           server->value->u.tcp.port);
+                errno = EINVAL;
+                goto out;
+            }
             ret = glfs_set_volfile_server(glfs,
                                    GlusterTransport_lookup[server->value->type],
                                    server->value->u.tcp.host,
-                                   atoi(server->value->u.tcp.port));
+                                   (int)port);
         }
 
         if (ret < 0) {
