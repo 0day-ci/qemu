@@ -49,7 +49,7 @@
 
 #if defined(CONFIG_USER_ONLY)
 /* All direct uses of g2h and h2g need to go away for usermode softmmu.  */
-#define g2h(x) ((void *)((unsigned long)(target_ulong)(x) + guest_base))
+#define g2h(x) ((void *)(guest_base + (unsigned long)(target_ulong)(x)))
 
 #if HOST_LONG_BITS <= TARGET_VIRT_ADDR_SPACE_BITS
 #define h2g_valid(x) 1
