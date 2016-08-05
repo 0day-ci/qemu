@@ -111,6 +111,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include "uname.h"
 
 #include "qemu.h"
+#include "hypertrace/user.h"
 
 #define CLONE_NPTL_FLAGS2 (CLONE_SETTLS | \
     CLONE_PARENT_SETTID | CLONE_CHILD_SETTID | CLONE_CHILD_CLEARTID)
@@ -7214,6 +7215,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         _mcleanup();
 #endif
         gdb_exit(cpu_env, arg1);
+        hypertrace_fini();
         _exit(arg1);
         ret = 0; /* avoid warning */
         break;
@@ -9219,6 +9221,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         _mcleanup();
 #endif
         gdb_exit(cpu_env, arg1);
+        hypertrace_fini();
         ret = get_errno(exit_group(arg1));
         break;
 #endif
