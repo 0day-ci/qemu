@@ -55,7 +55,7 @@ static inline unsigned seqlock_read_begin(QemuSeqLock *sl)
     return ret & ~1;
 }
 
-static inline int seqlock_read_retry(const QemuSeqLock *sl, unsigned start)
+static inline int seqlock_read_retry(QemuSeqLock *sl, unsigned start)
 {
     /* Read other fields before reading final sequence.  */
     smp_rmb();
