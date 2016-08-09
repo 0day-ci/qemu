@@ -1351,8 +1351,10 @@ sub process {
 			WARN("adding a line without newline at end of file\n" . $herecurr);
 		}
 
-# check we are in a valid source file C or perl if not then ignore this hunk
-		next if ($realfile !~ /\.(h|c|cpp|pl)$/);
+# check we are in a valid source file; if not then tabs are allowed.
+# make an exception from some scripts imported from other projects.
+		next if ($realfile !~ /\.(h|c|cpp|pl|py|sh)$/);
+		next if ($realfile =~ /(checkpatch|get_maintainer|texi2pod)\.pl$/);
 
 # in QEMU, no tabs are allowed
 		if ($rawline =~ /^\+.*\t/) {
