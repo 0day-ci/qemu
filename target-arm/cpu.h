@@ -580,7 +580,7 @@ struct ARMCPU {
     /* CPU has security extension */
     bool has_el3;
     /* CPU has PMU (Performance Monitor Unit) */
-    bool has_pmu;
+    bool has_host_pmu;
 
     /* CPU has memory protection unit */
     bool has_mpu;
@@ -1129,6 +1129,7 @@ enum arm_features {
     ARM_FEATURE_V8_SHA256, /* implements SHA256 part of v8 Crypto Extensions */
     ARM_FEATURE_V8_PMULL, /* implements PMULL part of v8 Crypto Extensions */
     ARM_FEATURE_THUMB_DSP, /* DSP insns supported in the Thumb encodings */
+    ARM_FEATURE_HOST_PMU, /* PMU supported by host */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)
