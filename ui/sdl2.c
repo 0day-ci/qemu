@@ -363,15 +363,17 @@ static void handle_keydown(SDL_Event *ev)
 
             win = ev->key.keysym.scancode - SDL_SCANCODE_1;
             if (win < sdl2_num_outputs) {
-                sdl2_console[win].hidden = !sdl2_console[win].hidden;
-                if (sdl2_console[win].real_window) {
-                    if (sdl2_console[win].hidden) {
-                        SDL_HideWindow(sdl2_console[win].real_window);
-                    } else {
-                        SDL_ShowWindow(sdl2_console[win].real_window);
+                if (sdl2_console[win].hidden == 1) {
+                    sdl2_console[win].hidden = !sdl2_console[win].hidden;
+                    if (sdl2_console[win].real_window) {
+                        if (sdl2_console[win].hidden) {
+                            SDL_HideWindow(sdl2_console[win].real_window);
+                        } else {
+                            SDL_ShowWindow(sdl2_console[win].real_window);
+                        }
                     }
+                    gui_keysym = 1;
                 }
-                gui_keysym = 1;
             }
             break;
         case SDL_SCANCODE_F:
@@ -566,9 +568,14 @@ static void handle_windowevent(SDL_Event *ev)
         update_displaychangelistener(&scon->dcl, 500);
         break;
     case SDL_WINDOWEVENT_CLOSE:
-        if (!no_quit) {
-            no_shutdown = 0;
-            qemu_system_shutdown_request();
+        if (scon->idx == 0) {
+            if (!no_quit) {
+                no_shutdown = 0;
+                qemu_system_shutdown_request();
+            }
+        } else {
+            scon->hidden = true;
+            SDL_HideWindow(scon->real_window);
         }
         break;
     case SDL_WINDOWEVENT_SHOWN:
