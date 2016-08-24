@@ -60,7 +60,7 @@
         (unsigned short)1,                                                         \
       (expr)+0))))))
 
-#ifdef __ATOMIC_RELAXED
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
 /* For C11 atomic ops */
 
 /* Manual memory barriers
@@ -210,7 +210,7 @@
 #define atomic_and(ptr, n) ((void) __atomic_fetch_and(ptr, n, __ATOMIC_SEQ_CST))
 #define atomic_or(ptr, n)  ((void) __atomic_fetch_or(ptr, n, __ATOMIC_SEQ_CST))
 
-#else /* __ATOMIC_RELAXED */
+#else /* __STDC_VERSION__ */
 
 /*
  * We use GCC builtin if it's available, as that can use mfence on
@@ -405,5 +405,5 @@
 #define atomic_and(ptr, n)     ((void) __sync_fetch_and_and(ptr, n))
 #define atomic_or(ptr, n)      ((void) __sync_fetch_and_or(ptr, n))
 
-#endif /* __ATOMIC_RELAXED */
+#endif /* __STDC_VERSION__ */
 #endif /* QEMU_ATOMIC_H */
