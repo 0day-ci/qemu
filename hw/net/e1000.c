@@ -261,6 +261,8 @@ set_interrupt_cause(E1000State *s, int index, uint32_t val)
     uint32_t pending_ints;
     uint32_t mit_delay;
 
+    val &= s->mac_reg[IMS];
+
     s->mac_reg[ICR] = val;
 
     /*
@@ -273,7 +275,7 @@ set_interrupt_cause(E1000State *s, int index, uint32_t val)
      */
     s->mac_reg[ICS] = val;
 
-    pending_ints = (s->mac_reg[IMS] & s->mac_reg[ICR]);
+    pending_ints = s->mac_reg[ICR];
     if (!s->mit_irq_level && pending_ints) {
         /*
          * Here we detect a potential raising edge. We postpone raising the
