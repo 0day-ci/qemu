@@ -46,6 +46,7 @@
 #include "qapi-event.h"
 #include "hw/nmi.h"
 #include "sysemu/replay.h"
+#include "trace.h"
 
 #ifndef _WIN32
 #include "qemu/compatfd.h"
@@ -1448,6 +1449,7 @@ void qemu_init_vcpu(CPUState *cpu)
     } else {
         qemu_dummy_start_vcpu(cpu);
     }
+    trace_guest_cpu_init(cpu);
 }
 
 void cpu_stop_current(void)
