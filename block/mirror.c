@@ -552,7 +552,7 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
     BlockDriverState *base = s->base;
     BlockDriverState *bs = blk_bs(s->common.blk);
     BlockDriverState *target_bs = blk_bs(s->target);
-    int ret, n;
+    int n;
 
     end = s->bdev_length / BDRV_SECTOR_SIZE;
 
@@ -590,6 +590,8 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
         /* Just to make sure we are not exceeding int limit. */
         int nb_sectors = MIN(INT_MAX >> BDRV_SECTOR_BITS,
                              end - sector_num);
+        int64_t status;
+        BlockDriverState *file;
 
         mirror_throttle(s);
 
@@ -597,13 +599,14 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
             return 0;
         }
 
-        ret = bdrv_is_allocated_above(bs, base, sector_num, nb_sectors, &n);
-        if (ret < 0) {
-            return ret;
+        status = bdrv_get_block_status_above(bs, base, sector_num,
+                                             nb_sectors, &n, &file);
+        if (status < 0) {
+            return status;
         }
 
         assert(n > 0);
-        if (ret == 1) {
+        if (status & BDRV_BLOCK_DATA) {
             bdrv_set_dirty_bitmap(s->dirty_bitmap, sector_num, n);
         }
         sector_num += n;
