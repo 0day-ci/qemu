@@ -642,6 +642,9 @@ int bdrv_parse_cache_mode(const char *mode, int *flags, bool *writethrough)
     if (!strcmp(mode, "off") || !strcmp(mode, "none")) {
         *writethrough = false;
         *flags |= BDRV_O_NOCACHE;
+    } else if (!strcmp(mode, "none-unsafe") || !strcmp(mode, "off-unsafe")) {
+        *writethrough = false;
+        *flags |= BDRV_O_NOCACHE | BDRV_O_NO_FLUSH;
     } else if (!strcmp(mode, "directsync")) {
         *writethrough = true;
         *flags |= BDRV_O_NOCACHE;
