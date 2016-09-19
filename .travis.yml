@@ -33,6 +33,7 @@ addons:
       - libvte-2.90-dev
       - sparse
       - uuid-dev
+      - bc
 
 # The channel name "irc.oftc.net#qemu" is encrypted against qemu/qemu
 # to prevent IRC notifications from forks. This was created using:
@@ -64,7 +65,7 @@ before_install:
 before_script:
   - ./configure ${CONFIG}
 script:
-  - make -j3 && ${TEST_CMD}
+  - make -j3 && eval ${TEST_CMD}
 matrix:
   include:
     # gprof/gcov are GCC features
@@ -85,6 +86,16 @@ matrix:
       compiler: gcc
     - env: CONFIG="--with-coroutine=gthread"
            TEST_CMD=""
+      compiler: gcc
+    - env: CONFIG="--target-list=x86_64-softmmu"
+           TEST_CMD="cd tests/qemu-iotests && ./check -luks"
+      compiler: gcc
+      sudo: required
+    - env: CONFIG="--target-list=x86_64-softmmu"
+           TEST_CMD="cd tests/qemu-iotests && ./check -raw"
+      compiler: gcc
+    - env: CONFIG="--target-list=x86_64-softmmu"
+           TEST_CMD="cd tests/qemu-iotests && ./check -qcow2"
       compiler: gcc
     - env: CONFIG=""
       os: osx
