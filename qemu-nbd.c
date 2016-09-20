@@ -85,6 +85,7 @@ static void usage(const char *name)
 "\n"
 "Exposing part of the image:\n"
 "  -o, --offset=OFFSET       offset into the image\n"
+"  -S, --device-size=LEN     limit reported device size\n"
 "  -P, --partition=NUM       only expose partition NUM\n"
 "\n"
 "General purpose options:\n"
@@ -471,10 +472,12 @@ int main(int argc, char **argv)
     const char *port = NULL;
     char *sockpath = NULL;
     char *device = NULL;
-    off_t fd_size;
+    off_t real_size = 0;
+    off_t fd_size = 0;
+    bool has_image_size = false;
     QemuOpts *sn_opts = NULL;
     const char *sn_id_or_name = NULL;
-    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:x:T:";
+    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:x:T:S:";
     struct option lopt[] = {
         { "help", no_argument, NULL, 'h' },
         { "version", no_argument, NULL, 'V' },
@@ -482,6 +485,7 @@ int main(int argc, char **argv)
         { "port", required_argument, NULL, 'p' },
         { "socket", required_argument, NULL, 'k' },
         { "offset", required_argument, NULL, 'o' },
+        { "image-size", required_argument, NULL, 'S' },
         { "read-only", no_argument, NULL, 'r' },
         { "partition", required_argument, NULL, 'P' },
         { "connect", required_argument, NULL, 'c' },
@@ -714,6 +718,18 @@ int main(int argc, char **argv)
             g_free(trace_file);
             trace_file = trace_opt_parse(optarg);
             break;
+        case 'S':
+            ret = qemu_strtoll(optarg, NULL, 0, &fd_size);
+            if (ret != 0) {
+                error_report("Invalid image size `%s'", optarg);
+                exit(EXIT_FAILURE);
+            }
+            if (fd_size <= 0) {
+                error_report("Image size must be positive `%s'", optarg);
+                exit(EXIT_FAILURE);
+            }
+            has_image_size = true;
+            break;
         }
     }
 
@@ -894,19 +910,29 @@ int main(int argc, char **argv)
     }
 
     bs->detect_zeroes = detect_zeroes;
-    fd_size = blk_getlength(blk);
-    if (fd_size < 0) {
+    real_size = blk_getlength(blk);
+    if (real_size < 0) {
         error_report("Failed to determine the image length: %s",
-                     strerror(-fd_size));
+                     strerror(-real_size));
         exit(EXIT_FAILURE);
     }
 
-    if (dev_offset >= fd_size) {
-        error_report("Offset (%lu) has to be smaller than the image size (%lu)",
-                     dev_offset, fd_size);
+    if (!has_image_size) {
+        fd_size = real_size;
+
+        if (dev_offset >= fd_size) {
+            error_report("Offset (%lu) has to be smaller than image size (%lu)",
+                        dev_offset, fd_size);
+            exit(EXIT_FAILURE);
+        }
+
+        fd_size -= dev_offset;
+    } else if ((dev_offset + fd_size) > real_size) {
+        error_report("Offset (%lu) plus image size (%lu) has to be smaller "
+                     "than or equal to real image size (%lu)",
+                     dev_offset, fd_size, real_size);
         exit(EXIT_FAILURE);
     }
-    fd_size -= dev_offset;
 
     if (partition != -1) {
         ret = find_partition(blk, partition, &dev_offset, &fd_size);

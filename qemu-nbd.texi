@@ -30,6 +30,10 @@ credentials for the qemu-nbd server.
 The TCP port to listen on (default @samp{10809})
 @item -o, --offset=@var{offset}
 The offset into the image
+@item -S, --image-size=@var{length}
+The size of the image to present to client. This is useful in combination with
+@var{-o} when the image is embedded in file but does not span to the end of the
+file.
 @item -b, --bind=@var{iface}
 The interface to bind to (default @samp{0.0.0.0})
 @item -k, --socket=@var{path}
