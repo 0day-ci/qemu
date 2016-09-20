@@ -901,6 +901,13 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
+    if (dev_offset >= fd_size) {
+        error_report("Offset (%lu) has to be smaller than the image size (%lu)",
+                     dev_offset, fd_size);
+        exit(EXIT_FAILURE);
+    }
+    fd_size -= dev_offset;
+
     if (partition != -1) {
         ret = find_partition(blk, partition, &dev_offset, &fd_size);
         if (ret < 0) {
