@@ -26,6 +26,14 @@
 #define QEMU_WARN_UNUSED_RESULT
 #endif
 
+/* The ignore_value() macro comes from GNULIB's LGPLv2+ ignore-value.h */
+#if QEMU_GNUC_PREREQ(3, 4)
+# define ignore_value(x) \
+         (__extension__ ({ __typeof__ (x) __x = (x); (void) __x; }))
+#else
+# define ignore_value(x) ((void) (x))
+#endif
+
 #if QEMU_GNUC_PREREQ(4, 0)
 #define QEMU_SENTINEL __attribute__((sentinel))
 #else
