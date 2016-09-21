@@ -149,7 +149,6 @@ struct VirtIOPCIProxy {
     uint32_t guest_features[2];
     VirtIOPCIQueue vqs[VIRTIO_QUEUE_MAX];
 
-    bool ioeventfd_disabled;
     bool ioeventfd_started;
     VirtIOIRQFD *vector_irqfd;
     int nvqs_with_notifiers;
