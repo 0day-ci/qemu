@@ -1182,6 +1182,7 @@ int vhost_dev_enable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
         goto fail;
     }
 
+    virtio_device_stop_ioeventfd(vdev);
     for (i = 0; i < hdev->nvqs; ++i) {
         r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i,
                                          true);
@@ -1201,6 +1202,7 @@ fail_vq:
         }
         assert (e >= 0);
     }
+    virtio_device_start_ioeventfd(vdev);
 fail:
     return r;
 }
@@ -1223,6 +1225,7 @@ void vhost_dev_disable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
         }
         assert (r >= 0);
     }
+    virtio_device_start_ioeventfd(vdev);
 }
 
 /* Test and clear event pending status.
