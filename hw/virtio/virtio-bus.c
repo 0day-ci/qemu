@@ -218,7 +218,7 @@ void virtio_bus_stop_ioeventfd(VirtioBusState *bus)
     bus->ioeventfd_started = false;
 }
 
-bool virtio_bus_ioeventfd_enabled(VirtIODevice *vdev)
+bool virtio_bus_ioeventfd_enabled(VirtioBusState *bus)
 {
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
     DeviceState *proxy = DEVICE(BUS(bus)->parent);
