@@ -412,10 +412,12 @@ void tcg_prologue_init(TCGContext *s)
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM)) {
+        qemu_log_lock();
         qemu_log("PROLOGUE: [size=%zu]\n", prologue_size);
         log_disas(buf0, prologue_size);
         qemu_log("\n");
         qemu_log_flush();
+        qemu_log_unlock();
     }
 #endif
 }
@@ -2544,9 +2546,11 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 #ifdef DEBUG_DISAS
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP)
                  && qemu_log_in_addr_range(tb->pc))) {
+        qemu_log_lock();
         qemu_log("OP:\n");
         tcg_dump_ops(s);
         qemu_log("\n");
+        qemu_log_unlock();
     }
 #endif
 
@@ -2572,9 +2576,11 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 #ifdef DEBUG_DISAS
             if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP_IND)
                          && qemu_log_in_addr_range(tb->pc))) {
+                qemu_log_lock();
                 qemu_log("OP before indirect lowering:\n");
                 tcg_dump_ops(s);
                 qemu_log("\n");
+                qemu_log_unlock();
             }
 #endif
             /* Replace indirect temps with direct temps.  */
@@ -2592,9 +2598,11 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 #ifdef DEBUG_DISAS
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP_OPT)
                  && qemu_log_in_addr_range(tb->pc))) {
+        qemu_log_lock();
         qemu_log("OP after optimization and liveness analysis:\n");
         tcg_dump_ops(s);
         qemu_log("\n");
+        qemu_log_unlock();
     }
 #endif
 

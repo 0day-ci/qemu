@@ -149,6 +149,7 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
 #if defined(DEBUG_DISAS)
     if (qemu_loglevel_mask(CPU_LOG_TB_CPU)
         && qemu_log_in_addr_range(itb->pc)) {
+        qemu_log_lock();
 #if defined(TARGET_I386)
         log_cpu_state(cpu, CPU_DUMP_CCOP);
 #elif defined(TARGET_M68K)
@@ -160,6 +161,7 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
 #else
         log_cpu_state(cpu, 0);
 #endif
+        qemu_log_unlock();
     }
 #endif /* DEBUG_DISAS */
 
