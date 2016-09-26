@@ -55,11 +55,7 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
         if (*ifname) {
             snprintf(dname, sizeof dname, "/dev/%s", ifname);
         } else {
-#if defined(__OpenBSD__)
-            snprintf(dname, sizeof dname, "/dev/tun%d", i);
-#else
             snprintf(dname, sizeof dname, "/dev/tap%d", i);
-#endif
         }
         TFR(fd = open(dname, O_RDWR));
         if (fd >= 0) {
