@@ -887,6 +887,7 @@ void qemu_savevm_state_begin(QEMUFile *f,
 
     trace_savevm_state_begin();
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        save_section_header(f, se, QEMU_VM_SECTION_START);
         if (!se->ops || !se->ops->set_params) {
             continue;
         }
@@ -902,7 +903,7 @@ void qemu_savevm_state_begin(QEMUFile *f,
                 continue;
             }
         }
-        save_section_header(f, se, QEMU_VM_SECTION_START);
+        save_section_header(f, se, QEMU_VM_SECTION_FULL);
 
         ret = se->ops->save_live_setup(f, se->opaque);
         save_section_footer(f, se);
@@ -1775,7 +1776,7 @@ qemu_loadvm_section_start(QEMUFile *f, MigrationIncomingState *mis,
 }
 
 static int
-qemu_loadvm_section_full(QEMUFile *f, MigrationIncomingState *mis)
+qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
 {
     uint32_t version_id, section_id;
     SaveStateEntry *se;
@@ -1846,14 +1847,21 @@ static int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis)
 {
     uint8_t section_type;
     int ret;
+    SaveStateEntry *se;
+    uint32_t instance, version;
 
     while ((section_type = qemu_get_byte(f)) != QEMU_VM_EOF) {
 
         trace_qemu_loadvm_state_section(section_type);
         switch (section_type) {
         case QEMU_VM_SECTION_START:
+            ret = qemu_loadvm_section_start(f, mis, &se, &instance, &version);
+            if (ret < 0) {
+                return ret;
+            }
+            break;
         case QEMU_VM_SECTION_FULL:
-            ret = qemu_loadvm_section_full(f, mis);
+            ret = qemu_loadvm_section_start_full(f, mis);
             if (ret < 0) {
                 return ret;
             }
