@@ -34,6 +34,12 @@ The offset into the image
 The interface to bind to (default @samp{0.0.0.0})
 @item -k, --socket=@var{path}
 Use a unix socket with path @var{path}
+@item --server-sock-fd=@var{fd_num}
+A server socket fd to be used for client connections.
+The socket fd must be configured and switched to listening
+state before passing to the program. The program uses
+the given socket fd as is, without any additional
+modifications.
 @item --image-opts
 Treat @var{filename} as a set of image options, instead of a plain
 filename. If this flag is specified, the @var{-f} flag should

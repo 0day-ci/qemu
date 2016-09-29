@@ -48,6 +48,7 @@
 #define QEMU_NBD_OPT_OBJECT        260
 #define QEMU_NBD_OPT_TLSCREDS      261
 #define QEMU_NBD_OPT_IMAGE_OPTS    262
+#define QEMU_NBD_OPT_SRV_SOCKET_FD 263
 
 #define MBR_SIZE 512
 
@@ -78,6 +79,7 @@ static void usage(const char *name)
 "  -b, --bind=IFACE          interface to bind to (default `0.0.0.0')\n"
 "  -k, --socket=PATH         path to the unix socket\n"
 "                            (default '"SOCKET_PATH"')\n"
+"  --server-sock-fd=NUM      pre-opened listening server socket file descriptor\n"
 "  -e, --shared=NUM          device can be shared by NUM clients (default '1')\n"
 "  -t, --persistent          don't exit on the last connection\n"
 "  -v, --verbose             display extra debugging information\n"
@@ -382,7 +384,7 @@ static void nbd_update_server_watch(void)
 }
 
 
-static SocketAddress *nbd_build_socket_address(const char *sockpath,
+static SocketAddress *nbd_build_sock_fd(const char *sockpath,
                                                const char *bindto,
                                                const char *port)
 {
@@ -459,6 +461,41 @@ static QCryptoTLSCreds *nbd_get_tls_creds(const char *id, Error **errp)
     return creds;
 }
 
+static void setup_address_and_port(const char **address, const char **port)
+{
+    if (*address == NULL) {
+        *address = "0.0.0.0";
+    }
+
+    if (*port == NULL) {
+        *port = g_strdup_printf("%d", NBD_DEFAULT_PORT);;
+    }
+}
+
+/*
++ * Check socket parameters compatibility when sock_fd is given
++ */
+static const char *sock_fd_validate_opts(char *device, char *sockpath,
+                                         const char *address, const char *port)
+{
+    if (device != NULL) {
+        return "NBD device can't be set when socket fd is specified";
+    }
+
+    if (sockpath != NULL) {
+        return "Unix socket can't be set when socket fd is specified";
+    }
+
+    if (address != NULL) {
+        return "The interface can't be set when socket fd is specified";
+    }
+
+    if (port != NULL) {
+        return "TCP port number can't be set when socket fd is specified";
+    }
+
+    return NULL;
+}
 
 int main(int argc, char **argv)
 {
@@ -467,7 +504,7 @@ int main(int argc, char **argv)
     off_t dev_offset = 0;
     uint16_t nbdflags = 0;
     bool disconnect = false;
-    const char *bindto = "0.0.0.0";
+    const char *bindto = NULL;
     const char *port = NULL;
     char *sockpath = NULL;
     char *device = NULL;
@@ -503,6 +540,8 @@ int main(int argc, char **argv)
         { "tls-creds", required_argument, NULL, QEMU_NBD_OPT_TLSCREDS },
         { "image-opts", no_argument, NULL, QEMU_NBD_OPT_IMAGE_OPTS },
         { "trace", required_argument, NULL, 'T' },
+        { "server-sock-fd", required_argument, NULL,
+          QEMU_NBD_OPT_SRV_SOCKET_FD },
         { NULL, 0, NULL, 0 }
     };
     int ch;
@@ -524,6 +563,7 @@ int main(int argc, char **argv)
     bool imageOpts = false;
     bool writethrough = true;
     char *trace_file = NULL;
+    int sock_fd = -1;
 
     /* The client thread uses SIGTERM to interrupt the server.  A signal
      * handler ensures that "qemu-nbd -v -c" exits with a nice status code.
@@ -714,6 +754,15 @@ int main(int argc, char **argv)
             g_free(trace_file);
             trace_file = trace_opt_parse(optarg);
             break;
+        case QEMU_NBD_OPT_SRV_SOCKET_FD:
+            sock_fd = qemu_parse_fd(optarg);
+
+            if (sock_fd < 0) {
+                error_report("Invalid socket fd value: "
+                             "it must be a non-negative integer");
+                exit(EXIT_FAILURE);
+            }
+            break;
         }
     }
 
@@ -734,6 +783,17 @@ int main(int argc, char **argv)
     }
     trace_init_file(trace_file);
     qemu_set_log(LOG_TRACE);
+
+    if (sock_fd != -1) {
+        const char *err_msg = sock_fd_validate_opts(device, sockpath,
+                                                    bindto, port);
+        if (err_msg != NULL) {
+            error_report("%s", err_msg);
+            exit(EXIT_FAILURE);
+        }
+    } else {
+        setup_address_and_port(&bindto, &port);
+    }
 
     if (tlscredsid) {
         if (sockpath) {
@@ -838,7 +898,22 @@ int main(int argc, char **argv)
         snprintf(sockpath, 128, SOCKET_PATH, basename(device));
     }
 
-    saddr = nbd_build_socket_address(sockpath, bindto, port);
+    if (sock_fd == -1) {
+        server_ioc = qio_channel_socket_new();
+        saddr = nbd_build_sock_fd(sockpath, bindto, port);
+        if (qio_channel_socket_listen_sync(server_ioc, saddr, &local_err) < 0) {
+            object_unref(OBJECT(server_ioc));
+            error_report_err(local_err);
+            return 1;
+        }
+    } else {
+        server_ioc = qio_channel_socket_new_fd(sock_fd, &local_err);
+        if (server_ioc == NULL) {
+            error_report("Failed to use the given server socket fd: %s",
+                         error_get_pretty(local_err));
+            exit(EXIT_FAILURE);
+        }
+    }
 
     if (qemu_init_main_loop(&local_err)) {
         error_report_err(local_err);
@@ -919,13 +994,6 @@ int main(int argc, char **argv)
     if (export_name) {
         nbd_export_set_name(exp, export_name);
         newproto = true;
-    }
-
-    server_ioc = qio_channel_socket_new();
-    if (qio_channel_socket_listen_sync(server_ioc, saddr, &local_err) < 0) {
-        object_unref(OBJECT(server_ioc));
-        error_report_err(local_err);
-        return 1;
     }
 
     if (device) {
