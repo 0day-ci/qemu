@@ -84,7 +84,6 @@ run_qemu -drive driver=$IMGFMT,id=disk,node-name=test-node,file="$TEST_IMG" <<EO
       "options": {
         "driver": "$IMGFMT",
         "node-name": "disk",
-        "lock-mode": "off",
         "file": {
             "driver": "file",
             "filename": "$TEST_IMG"
@@ -97,7 +96,6 @@ run_qemu -drive driver=$IMGFMT,id=disk,node-name=test-node,file="$TEST_IMG" <<EO
       "options": {
         "driver": "$IMGFMT",
         "node-name": "test-node",
-        "lock-mode": "off",
         "file": {
             "driver": "file",
             "filename": "$TEST_IMG"
