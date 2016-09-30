@@ -896,6 +896,11 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "num-queues property must be larger than 0");
         return;
     }
+    blk_lock_image(conf->conf.blk, conf->conf.lock_mode, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
 
     blkconf_serial(&conf->conf, &conf->serial);
     blkconf_apply_backend_options(&conf->conf);
