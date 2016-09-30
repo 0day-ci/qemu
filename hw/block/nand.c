@@ -64,6 +64,7 @@ struct NANDFlashState {
     int page_shift, oob_shift, erase_shift, addr_shift;
     uint8_t *storage;
     BlockBackend *blk;
+    ImageLockMode lock_mode;
     int mem_oob;
 
     uint8_t cle, ale, ce, wp, gnd;
@@ -373,6 +374,7 @@ static void nand_realize(DeviceState *dev, Error **errp)
 {
     int pagesize;
     NANDFlashState *s = NAND(dev);
+    Error *local_err = NULL;
 
     s->buswidth = nand_flash_ids[s->chip_id].width >> 3;
     s->size = nand_flash_ids[s->chip_id].size << 20;
@@ -407,6 +409,11 @@ static void nand_realize(DeviceState *dev, Error **errp)
             error_setg(errp, "Can't use a read-only drive");
             return;
         }
+        blk_lock_image(s->blk, s->lock_mode, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
         if (blk_getlength(s->blk) >=
                 (s->pages << s->page_shift) + (s->pages << s->oob_shift)) {
             pagesize = 0;
@@ -427,6 +434,7 @@ static Property nand_properties[] = {
     DEFINE_PROP_UINT8("manufacturer_id", NANDFlashState, manf_id, 0),
     DEFINE_PROP_UINT8("chip_id", NANDFlashState, chip_id, 0),
     DEFINE_PROP_DRIVE("drive", NANDFlashState, blk),
+    DEFINE_PROP_LOCK_MODE("lock-mode", NANDFlashState, lock_mode),
     DEFINE_PROP_END_OF_LIST(),
 };
 
