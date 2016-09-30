@@ -2754,3 +2754,21 @@
   'data' : { 'parent': 'str',
              '*child': 'str',
              '*node': 'str' } }
+
+##
+# @ImageLockMode:
+#
+# @auto: defer to the block driver to use the least strict mode, based on
+#        the nature of format and read-only flag, and the supported locking
+#        operations of the protocol.
+#
+# @exclusive: always exclusively lock the image.
+#
+# @shared: use a shared lock mode.
+#
+# @nolock: don't lock the image.
+#
+# Since: 2.8
+##
+{ 'enum': 'ImageLockMode',
+  'data': ['auto', 'exclusive', 'shared', 'nolock'] }
