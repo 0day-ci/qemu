@@ -98,7 +98,11 @@ typedef struct HDGeometry {
                                       select an appropriate protocol driver,
                                       ignoring the format layer */
 #define BDRV_O_NO_IO       0x10000 /* don't initialize for I/O */
+#define BDRV_O_NO_LOCK     0x20000 /* don't lock image file */
+#define BDRV_O_SHARED_LOCK 0x40000 /* lock the image file in shared mode */
+#define BDRV_O_EXCLUSIVE_LOCK 0x80000 /* lock the image file in exclusive mode */
 
+#define BDRV_O_LOCK_MASK   (BDRV_O_NO_LOCK | BDRV_O_SHARED_LOCK | BDRV_O_EXCLUSIVE_LOCK)
 #define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_NO_FLUSH)
 
 
