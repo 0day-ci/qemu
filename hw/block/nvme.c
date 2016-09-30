@@ -829,12 +829,16 @@ static int nvme_init(PCIDevice *pci_dev)
 {
     NvmeCtrl *n = NVME(pci_dev);
     NvmeIdCtrl *id = &n->id_ctrl;
-
+    Error *local_err = NULL;
     int i;
     int64_t bs_size;
     uint8_t *pci_conf;
 
     if (!n->conf.blk) {
+        return -1;
+    }
+    blk_lock_image(n->conf.blk, n->conf.lock_mode, &local_err);
+    if (local_err) {
         return -1;
     }
 
