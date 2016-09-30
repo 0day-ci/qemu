@@ -12,11 +12,13 @@
 #define HW_BLOCK_H
 
 #include "qemu-common.h"
+#include "block/block.h"
 
 /* Configuration */
 
 typedef struct BlockConf {
     BlockBackend *blk;
+    ImageLockMode lock_mode;
     uint16_t physical_block_size;
     uint16_t logical_block_size;
     uint16_t min_io_size;

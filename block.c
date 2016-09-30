@@ -235,6 +235,7 @@ BlockDriverState *bdrv_new(void)
     notifier_with_return_list_init(&bs->before_write_notifiers);
     bs->refcnt = 1;
     bs->aio_context = qemu_get_aio_context();
+    bs->cur_lock = IMAGE_LOCK_MODE__MAX;
 
     qemu_co_queue_init(&bs->flush_queue);
 
@@ -925,6 +926,48 @@ out:
     g_free(gen_node_name);
 }
 
+ImageLockMode bdrv_lock_mode_from_flags(int flags)
+{
+    if (flags & BDRV_O_NO_LOCK) {
+        return IMAGE_LOCK_MODE_NOLOCK;
+    } else if (flags & BDRV_O_SHARED_LOCK) {
+        return IMAGE_LOCK_MODE_SHARED;
+    } else if (flags & BDRV_O_EXCLUSIVE_LOCK) {
+        return IMAGE_LOCK_MODE_EXCLUSIVE;
+    } else {
+        return IMAGE_LOCK_MODE_AUTO;
+    }
+}
+
+ImageLockMode bdrv_get_lock_mode(BlockDriverState *bs)
+{
+    return bs->cur_lock;
+}
+
+int bdrv_set_lock_mode(BlockDriverState *bs, ImageLockMode mode)
+{
+    int ret;
+
+    if (bs->cur_lock == mode) {
+        return 0;
+    } else if (!bs->drv) {
+        return -ENOMEDIUM;
+    } else if (!bs->drv->bdrv_lockf) {
+        if (bs->file) {
+            return bdrv_set_lock_mode(bs->file->bs, mode);
+        }
+        return 0;
+    }
+    ret = bs->drv->bdrv_lockf(bs, mode);
+    if (ret == -ENOTSUP) {
+        /* Handle it the same way as !bs->drv->bdrv_lockf */
+        ret = 0;
+    } else if (ret == 0) {
+        bs->cur_lock = mode;
+    }
+    return ret;
+}
+
 static QemuOptsList bdrv_runtime_opts = {
     .name = "bdrv_common",
     .head = QTAILQ_HEAD_INITIALIZER(bdrv_runtime_opts.head),
@@ -1074,6 +1117,10 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
             error_setg_errno(errp, -ret, "Could not open image");
         }
         goto free_and_fail;
+    }
+
+    if (open_flags & BDRV_O_INACTIVE) {
+        open_flags = (open_flags & ~BDRV_O_LOCK_MASK) & BDRV_O_NO_LOCK;
     }
 
     ret = refresh_total_sectors(bs, bs->total_sectors);
@@ -2273,6 +2320,7 @@ static void bdrv_close(BlockDriverState *bs)
     if (bs->drv) {
         BdrvChild *child, *next;
 
+        bdrv_set_lock_mode(bs, IMAGE_LOCK_MODE_NOLOCK);
         bs->drv->bdrv_close(bs);
         bs->drv = NULL;
 
@@ -3188,6 +3236,9 @@ void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
         error_setg_errno(errp, -ret, "Could not refresh total sector count");
         return;
     }
+    if (bs->cur_lock != IMAGE_LOCK_MODE__MAX) {
+        bdrv_set_lock_mode(bs, bs->cur_lock);
+    }
 }
 
 void bdrv_invalidate_cache_all(Error **errp)
@@ -3230,6 +3281,7 @@ static int bdrv_inactivate_recurse(BlockDriverState *bs,
     }
 
     if (setting_flag) {
+        ret = bdrv_set_lock_mode(bs, IMAGE_LOCK_MODE_NOLOCK);
         bs->open_flags |= BDRV_O_INACTIVE;
     }
     return 0;

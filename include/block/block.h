@@ -272,7 +272,8 @@ int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
 BlockDriverState *bdrv_find_overlay(BlockDriverState *active,
                                     BlockDriverState *bs);
 BlockDriverState *bdrv_find_base(BlockDriverState *bs);
-
+ImageLockMode bdrv_lock_mode_from_flags(int flags);
+ImageLockMode bdrv_get_lock_mode(BlockDriverState *bs);
 
 typedef struct BdrvCheckResult {
     int corruptions;
@@ -529,5 +530,6 @@ void bdrv_drained_end(BlockDriverState *bs);
 void bdrv_add_child(BlockDriverState *parent, BlockDriverState *child,
                     Error **errp);
 void bdrv_del_child(BlockDriverState *parent, BdrvChild *child, Error **errp);
+int bdrv_set_lock_mode(BlockDriverState *bs, ImageLockMode mode);
 
 #endif
