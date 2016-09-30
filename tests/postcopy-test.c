@@ -371,12 +371,14 @@ static void test_migrate(void)
         cmd_src = g_strdup_printf("-machine accel=kvm:tcg -m 150M"
                                   " -name pcsource,debug-threads=on"
                                   " -serial file:%s/src_serial"
-                                  " -drive file=%s,format=raw",
+                                  " -drive file=%s,format=raw,if=none,id=drive1"
+                                  " -device ide-hd,drive=drive1,lock-mode=shared",
                                   tmpfs, bootpath);
         cmd_dst = g_strdup_printf("-machine accel=kvm:tcg -m 150M"
                                   " -name pcdest,debug-threads=on"
                                   " -serial file:%s/dest_serial"
-                                  " -drive file=%s,format=raw"
+                                  " -drive file=%s,format=raw,if=none,id=drive2"
+                                  " -device ide-hd,drive=drive2,lock-mode=shared"
                                   " -incoming %s",
                                   tmpfs, bootpath, uri);
     } else if (strcmp(arch, "ppc64") == 0) {
@@ -384,7 +386,8 @@ static void test_migrate(void)
         cmd_src = g_strdup_printf("-machine accel=kvm:tcg -m 256M"
                                   " -name pcsource,debug-threads=on"
                                   " -serial file:%s/src_serial"
-                                  " -drive file=%s,if=pflash,format=raw",
+                                  " -drive file=%s,if=none,format=raw,id=drive3"
+                                  " -device pflash,drive=drive3,lock-mode=shared",
                                   tmpfs, bootpath);
         cmd_dst = g_strdup_printf("-machine accel=kvm:tcg -m 256M"
                                   " -name pcdest,debug-threads=on"
