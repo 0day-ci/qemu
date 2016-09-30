@@ -76,6 +76,7 @@ struct pflash_t {
     /*< public >*/
 
     BlockBackend *blk;
+    ImageLockMode lock_mode;
     uint32_t nb_blocs;
     uint64_t sector_len;
     uint8_t bank_width;
@@ -738,6 +739,14 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
 
     if (pfl->blk) {
+        Error *local_err = NULL;
+
+        blk_lock_image(pfl->blk, pfl->lock_mode, &local_err);
+        if (local_err) {
+            vmstate_unregister_ram(&pfl->mem, DEVICE(pfl));
+            error_propagate(errp, local_err);
+            return;
+        }
         /* read the initial flash content */
         ret = blk_pread(pfl->blk, 0, pfl->storage, total_len);
 
@@ -852,6 +861,7 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
 
 static Property pflash_cfi01_properties[] = {
     DEFINE_PROP_DRIVE("drive", struct pflash_t, blk),
+    DEFINE_PROP_LOCK_MODE("lock-mode", struct pflash_t, lock_mode),
     /* num-blocks is the number of blocks actually visible to the guest,
      * ie the total size of the device divided by the sector length.
      * If we're emulating flash devices wired in parallel the actual

@@ -620,6 +620,14 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     pfl->storage = memory_region_get_ram_ptr(&pfl->orig_mem);
     pfl->chip_len = chip_len;
     if (pfl->blk) {
+        Error *local_err = NULL;
+
+        blk_lock_image(pfl->blk, pfl->lock_mode, &local_err);
+        if (local_err) {
+            vmstate_unregister_ram(&pfl->mem, DEVICE(pfl));
+            error_propagate(errp, local_err);
+            return;
+        }
         /* read the initial flash content */
         ret = blk_pread(pfl->blk, 0, pfl->storage, chip_len);
         if (ret < 0) {
@@ -724,6 +732,7 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
 
 static Property pflash_cfi02_properties[] = {
     DEFINE_PROP_DRIVE("drive", struct pflash_t, blk),
+    DEFINE_PROP_LOCK_MODE("lock-mode", struct pflash_t, lock_mode),
     DEFINE_PROP_UINT32("num-blocks", struct pflash_t, nb_blocs, 0),
     DEFINE_PROP_UINT32("sector-length", struct pflash_t, sector_len, 0),
     DEFINE_PROP_UINT8("width", struct pflash_t, width, 0),
