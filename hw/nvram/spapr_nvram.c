@@ -39,6 +39,7 @@ typedef struct sPAPRNVRAM {
     uint32_t size;
     uint8_t *buf;
     BlockBackend *blk;
+    ImageLockMode lock_mode;
     VMChangeStateEntry *vmstate;
 } sPAPRNVRAM;
 
@@ -140,8 +141,14 @@ static void rtas_nvram_store(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 static void spapr_nvram_realize(VIOsPAPRDevice *dev, Error **errp)
 {
     sPAPRNVRAM *nvram = VIO_SPAPR_NVRAM(dev);
+    Error *local_err = NULL;
 
     if (nvram->blk) {
+        blk_lock_image(nvram->blk, nvram->lock_mode, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
         nvram->size = blk_getlength(nvram->blk);
     } else {
         nvram->size = DEFAULT_NVRAM_SIZE;
@@ -226,6 +233,7 @@ static const VMStateDescription vmstate_spapr_nvram = {
 static Property spapr_nvram_properties[] = {
     DEFINE_SPAPR_PROPERTIES(sPAPRNVRAM, sdev),
     DEFINE_PROP_DRIVE("drive", sPAPRNVRAM, blk),
+    DEFINE_PROP_LOCK_MODE("lock-mode", sPAPRNVRAM, lock_mode),
     DEFINE_PROP_END_OF_LIST(),
 };
 
