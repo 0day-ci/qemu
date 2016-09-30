@@ -380,6 +380,7 @@ typedef struct Flash {
     SSISlave parent_obj;
 
     BlockBackend *blk;
+    ImageLockMode lock_mode;
 
     uint8_t *storage;
     uint32_t size;
@@ -1144,6 +1145,7 @@ static void m25p80_realize(SSISlave *ss, Error **errp)
 {
     Flash *s = M25P80(ss);
     M25P80Class *mc = M25P80_GET_CLASS(s);
+    Error *local_err = NULL;
 
     s->pi = mc->pi;
 
@@ -1151,6 +1153,11 @@ static void m25p80_realize(SSISlave *ss, Error **errp)
     s->dirty_page = -1;
 
     if (s->blk) {
+        blk_lock_image(s->blk, s->lock_mode, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
         DB_PRINT_L(0, "Binding to IF_MTD drive\n");
         s->storage = blk_blockalign(s->blk, s->size);
 
@@ -1185,6 +1192,7 @@ static Property m25p80_properties[] = {
     DEFINE_PROP_UINT8("spansion-cr3nv", Flash, spansion_cr3nv, 0x2),
     DEFINE_PROP_UINT8("spansion-cr4nv", Flash, spansion_cr4nv, 0x10),
     DEFINE_PROP_DRIVE("drive", Flash, blk),
+    DEFINE_PROP_LOCK_MODE("lock-mode", Flash, lock_mode),
     DEFINE_PROP_END_OF_LIST(),
 };
 
