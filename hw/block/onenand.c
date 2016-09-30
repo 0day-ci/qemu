@@ -778,6 +778,7 @@ static int onenand_initfn(SysBusDevice *sbd)
     OneNANDState *s = ONE_NAND(dev);
     uint32_t size = 1 << (24 + ((s->id.dev >> 4) & 7));
     void *ram;
+    Error *local_err = NULL;
 
     s->base = (hwaddr)-1;
     s->rdy = NULL;
@@ -794,6 +795,11 @@ static int onenand_initfn(SysBusDevice *sbd)
     } else {
         if (blk_is_read_only(s->blk)) {
             error_report("Can't use a read-only drive");
+            return -1;
+        }
+        blk_lock_image(s->blk, s->lock_mode, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
             return -1;
         }
         s->blk_cur = s->blk;
@@ -828,6 +834,7 @@ static Property onenand_properties[] = {
     DEFINE_PROP_UINT16("version_id", OneNANDState, id.ver, 0),
     DEFINE_PROP_INT32("shift", OneNANDState, shift, 0),
     DEFINE_PROP_DRIVE("drive", OneNANDState, blk),
+    DEFINE_PROP_LOCK_MODE("lock-mode", OneNANDState, lock_mode),
     DEFINE_PROP_END_OF_LIST(),
 };
 
