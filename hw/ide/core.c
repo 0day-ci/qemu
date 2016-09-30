@@ -28,6 +28,7 @@
 #include "hw/pci/pci.h"
 #include "hw/isa/isa.h"
 #include "qemu/error-report.h"
+#include "qapi/error.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
@@ -2394,17 +2395,24 @@ static const BlockDevOps ide_hd_block_ops = {
     .resize_cb = ide_resize_cb,
 };
 
-int ide_init_drive(IDEState *s, BlockBackend *blk, IDEDriveKind kind,
+int ide_init_drive(IDEState *s, BlockBackend *blk, ImageLockMode lock_mode,
+                   IDEDriveKind kind,
                    const char *version, const char *serial, const char *model,
                    uint64_t wwn,
                    uint32_t cylinders, uint32_t heads, uint32_t secs,
                    int chs_trans)
 {
+    Error *local_err = NULL;
     uint64_t nb_sectors;
 
     s->blk = blk;
     s->drive_kind = kind;
 
+    blk_lock_image(blk, lock_mode, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        return -1;
+    }
     blk_get_geometry(blk, &nb_sectors);
     s->cylinders = cylinders;
     s->heads = heads;

@@ -198,7 +198,7 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
     }
     blkconf_apply_backend_options(&dev->conf);
 
-    if (ide_init_drive(s, dev->conf.blk, kind,
+    if (ide_init_drive(s, dev->conf.blk, dev->conf.lock_mode, kind,
                        dev->version, dev->serial, dev->model, dev->wwn,
                        dev->conf.cyls, dev->conf.heads, dev->conf.secs,
                        dev->chs_trans) < 0) {

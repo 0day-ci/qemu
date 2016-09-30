@@ -601,7 +601,8 @@ uint32_t ide_data_readw(void *opaque, uint32_t addr);
 void ide_data_writel(void *opaque, uint32_t addr, uint32_t val);
 uint32_t ide_data_readl(void *opaque, uint32_t addr);
 
-int ide_init_drive(IDEState *s, BlockBackend *blk, IDEDriveKind kind,
+int ide_init_drive(IDEState *s, BlockBackend *blk, ImageLockMode lock_mode,
+                   IDEDriveKind kind,
                    const char *version, const char *serial, const char *model,
                    uint64_t wwn,
                    uint32_t cylinders, uint32_t heads, uint32_t secs,
