@@ -600,6 +600,11 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
         error_setg(errp, "drive property not set");
         return;
     }
+    blk_lock_image(blk, s->conf.lock_mode, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
 
     blkconf_serial(&s->conf, &dev->serial);
     blkconf_blocksizes(&s->conf);
