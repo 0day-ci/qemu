@@ -1132,10 +1132,14 @@ static void test_migrate_sanity(void)
     char *uri = g_strdup_printf("unix:%s", mig_socket);
 
     src = ahci_boot("-m 1024 -M q35 "
-                    "-drive if=ide,file=%s,format=%s ", tmp_path, imgfmt);
+                    "-drive if=none,id=drive0,file=%s,format=%s "
+                    "-device ide-hd,drive=drive0,lock-mode=shared ",
+                    tmp_path, imgfmt);
     dst = ahci_boot("-m 1024 -M q35 "
-                    "-drive if=ide,file=%s,format=%s "
-                    "-incoming %s", tmp_path, imgfmt, uri);
+                    "-drive if=none,id=drive0,file=%s,format=%s "
+                    "-device ide-hd,drive=drive0,lock-mode=shared "
+                    "-incoming %s",
+                    tmp_path, imgfmt, uri);
 
     ahci_migrate(src, dst, uri);
 
@@ -1157,11 +1161,14 @@ static void ahci_migrate_simple(uint8_t cmd_read, uint8_t cmd_write)
     char *uri = g_strdup_printf("unix:%s", mig_socket);
 
     src = ahci_boot_and_enable("-m 1024 -M q35 "
-                               "-drive if=ide,format=%s,file=%s ",
+                               "-drive if=none,format=%s,file=%s,id=drive0 "
+                               "-device ide-hd,drive=drive0,lock-mode=shared ",
                                imgfmt, tmp_path);
     dst = ahci_boot("-m 1024 -M q35 "
-                    "-drive if=ide,format=%s,file=%s "
-                    "-incoming %s", imgfmt, tmp_path, uri);
+                    "-drive if=none,format=%s,file=%s,id=drive0 "
+                    "-device ide-hd,drive=drive0,lock-mode=shared "
+                    "-incoming %s",
+                    imgfmt, tmp_path, uri);
 
     set_context(src->parent);
 
@@ -1286,7 +1293,7 @@ static void ahci_migrate_halted_io(uint8_t cmd_read, uint8_t cmd_write)
                                "format=%s,cache=writeback,"
                                "rerror=stop,werror=stop "
                                "-M q35 "
-                               "-device ide-hd,drive=drive0 ",
+                               "-device ide-hd,drive=drive0,lock-mode=shared ",
                                debug_path,
                                tmp_path, imgfmt);
 
@@ -1294,7 +1301,7 @@ static void ahci_migrate_halted_io(uint8_t cmd_read, uint8_t cmd_write)
                     "format=%s,cache=writeback,"
                     "rerror=stop,werror=stop "
                     "-M q35 "
-                    "-device ide-hd,drive=drive0 "
+                    "-device ide-hd,drive=drive0,lock-mode=shared "
                     "-incoming %s",
                     tmp_path, imgfmt, uri);
 
@@ -1358,13 +1365,13 @@ static void test_flush_migrate(void)
                                "cache=writeback,rerror=stop,werror=stop,"
                                "format=%s "
                                "-M q35 "
-                               "-device ide-hd,drive=drive0 ",
+                               "-device ide-hd,drive=drive0,lock-mode=shared ",
                                debug_path, tmp_path, imgfmt);
     dst = ahci_boot("-drive file=%s,if=none,id=drive0,"
                     "cache=writeback,rerror=stop,werror=stop,"
                     "format=%s "
                     "-M q35 "
-                    "-device ide-hd,drive=drive0 "
+                    "-device ide-hd,drive=drive0,lock-mode=shared "
                     "-incoming %s", tmp_path, imgfmt, uri);
 
     set_context(src->parent);
