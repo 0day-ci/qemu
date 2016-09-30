@@ -124,6 +124,7 @@ struct SDState {
     qemu_irq readonly_cb;
     qemu_irq inserted_cb;
     BlockBackend *blk;
+    ImageLockMode lock_mode;
 
     bool enable;
 };
@@ -1886,6 +1887,7 @@ static void sd_instance_finalize(Object *obj)
 
 static void sd_realize(DeviceState *dev, Error **errp)
 {
+    Error *local_err = NULL;
     SDState *sd = SD_CARD(dev);
 
     if (sd->blk && blk_is_read_only(sd->blk)) {
@@ -1894,12 +1896,18 @@ static void sd_realize(DeviceState *dev, Error **errp)
     }
 
     if (sd->blk) {
+        blk_lock_image(sd->blk, sd->lock_mode, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
         blk_set_dev_ops(sd->blk, &sd_block_ops, sd);
     }
 }
 
 static Property sd_properties[] = {
     DEFINE_PROP_DRIVE("drive", SDState, blk),
+    DEFINE_PROP_LOCK_MODE("lock-mode", SDState, lock_mode),
     /* We do not model the chip select pin, so allow the board to select
      * whether card should be in SSI or MMC/SD mode.  It is also up to the
      * board to ensure that ssi transfers only occur when the chip select
