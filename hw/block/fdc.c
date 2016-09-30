@@ -158,6 +158,7 @@ typedef enum FDiskFlags {
 typedef struct FDrive {
     FDCtrl *fdctrl;
     BlockBackend *blk;
+    ImageLockMode lock_mode;
     /* Drive status */
     FloppyDriveType drive;    /* CMOS drive type        */
     uint8_t perpendicular;    /* 2.88 MB access mode    */
@@ -2446,9 +2447,21 @@ static void fdctrl_realize_common(FDCtrl *fdctrl, Error **errp)
 {
     int i, j;
     static int command_tables_inited = 0;
+    Error *local_err = NULL;
 
     if (fdctrl->fallback == FLOPPY_DRIVE_TYPE_AUTO) {
         error_setg(errp, "Cannot choose a fallback FDrive type of 'auto'");
+    }
+
+    for (i = 0; i < 2; ++i) {
+        if (fdctrl->drives[i].blk) {
+            blk_lock_image(fdctrl->drives[i].blk, fdctrl->drives[i].lock_mode,
+                           &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                return;
+            }
+        }
     }
 
     /* Fill 'command_to_handler' lookup table */
@@ -2495,7 +2508,6 @@ static void isabus_fdc_realize(DeviceState *dev, Error **errp)
     FDCtrlISABus *isa = ISA_FDC(dev);
     FDCtrl *fdctrl = &isa->state;
     Error *err = NULL;
-
     isa_register_portio_list(isadev, &fdctrl->portio_list,
                              isa->iobase, fdc_portio_list, fdctrl,
                              "fdc");
@@ -2608,6 +2620,8 @@ static Property isa_fdc_properties[] = {
     DEFINE_PROP_UINT32("dma", FDCtrlISABus, dma, 2),
     DEFINE_PROP_DRIVE("driveA", FDCtrlISABus, state.drives[0].blk),
     DEFINE_PROP_DRIVE("driveB", FDCtrlISABus, state.drives[1].blk),
+    DEFINE_PROP_LOCK_MODE("lock-modeA", FDCtrlISABus, state.drives[0].lock_mode),
+    DEFINE_PROP_LOCK_MODE("lock-modeB", FDCtrlISABus, state.drives[1].lock_mode),
     DEFINE_PROP_BIT("check_media_rate", FDCtrlISABus, state.check_media_rate,
                     0, true),
     DEFINE_PROP_DEFAULT("fdtypeA", FDCtrlISABus, state.drives[0].drive,
@@ -2667,6 +2681,8 @@ static const VMStateDescription vmstate_sysbus_fdc ={
 static Property sysbus_fdc_properties[] = {
     DEFINE_PROP_DRIVE("driveA", FDCtrlSysBus, state.drives[0].blk),
     DEFINE_PROP_DRIVE("driveB", FDCtrlSysBus, state.drives[1].blk),
+    DEFINE_PROP_LOCK_MODE("lock-modeA", FDCtrlISABus, state.drives[0].lock_mode),
+    DEFINE_PROP_LOCK_MODE("lock-modeB", FDCtrlISABus, state.drives[1].lock_mode),
     DEFINE_PROP_DEFAULT("fdtypeA", FDCtrlSysBus, state.drives[0].drive,
                         FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
                         FloppyDriveType),
@@ -2696,6 +2712,7 @@ static const TypeInfo sysbus_fdc_info = {
 
 static Property sun4m_fdc_properties[] = {
     DEFINE_PROP_DRIVE("drive", FDCtrlSysBus, state.drives[0].blk),
+    DEFINE_PROP_LOCK_MODE("lock-mode", FDCtrlISABus, state.drives[0].lock_mode),
     DEFINE_PROP_DEFAULT("fdtype", FDCtrlSysBus, state.drives[0].drive,
                         FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
                         FloppyDriveType),
