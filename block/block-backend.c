@@ -61,6 +61,7 @@ struct BlockBackend {
     bool allow_write_beyond_eof;
 
     NotifierList remove_bs_notifiers, insert_bs_notifiers;
+    ImageLockMode lock_mode;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -1719,4 +1720,21 @@ static void blk_root_drained_end(BdrvChild *child)
 
     assert(blk->public.io_limits_disabled);
     --blk->public.io_limits_disabled;
+}
+
+void blk_lock_image(BlockBackend *blk, ImageLockMode mode, Error **errp)
+{
+    int r;
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (!bs) {
+        blk->lock_mode = mode;
+        return;
+    }
+    r = bdrv_set_lock_mode(bs, mode);
+    if (r) {
+        error_setg(errp, "Failed to lock image");
+    } else {
+        blk->lock_mode = mode;
+    }
 }

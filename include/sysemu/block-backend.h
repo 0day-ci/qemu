@@ -224,4 +224,6 @@ void blk_io_limits_disable(BlockBackend *blk);
 void blk_io_limits_enable(BlockBackend *blk, const char *group);
 void blk_io_limits_update_group(BlockBackend *blk, const char *group);
 
+void blk_lock_image(BlockBackend *blk, ImageLockMode mode, Error **errp);
+
 #endif
