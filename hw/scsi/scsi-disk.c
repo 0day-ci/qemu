@@ -2288,6 +2288,12 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
         return;
     }
 
+    blk_lock_image(s->qdev.conf.blk, s->qdev.conf.lock_mode, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
     if (!(s->features & (1 << SCSI_DISK_F_REMOVABLE)) &&
         !blk_is_inserted(s->qdev.conf.blk)) {
         error_setg(errp, "Device needs media, but drive is empty");
