@@ -502,9 +502,16 @@ static void scsi_generic_realize(SCSIDevice *s, Error **errp)
     int rc;
     int sg_version;
     struct sg_scsi_id scsiid;
+    Error *err = NULL;
 
     if (!s->conf.blk) {
         error_setg(errp, "drive property not set");
+        return;
+    }
+
+    blk_lock_image(s->conf.blk, s->conf.lock_mode, &err);
+    if (err) {
+        error_propagate(errp, err);
         return;
     }
 
