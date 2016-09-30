@@ -47,6 +47,7 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
 
 #define DEFINE_BLOCK_PROPERTIES(_state, _conf)                          \
     DEFINE_PROP_DRIVE("drive", _state, _conf.blk),                      \
+    DEFINE_PROP_LOCK_MODE("lock-mode", _state, _conf.lock_mode),        \
     DEFINE_PROP_BLOCKSIZE("logical_block_size", _state,                 \
                           _conf.logical_block_size),                    \
     DEFINE_PROP_BLOCKSIZE("physical_block_size", _state,                \

@@ -552,6 +552,16 @@ PropertyInfo qdev_prop_blockdev_on_error = {
     .set = set_enum,
 };
 
+/* --- Block image lock mode --- */
+
+PropertyInfo qdev_prop_lock_mode = {
+    .name  = "ImageLockMode",
+    .description = "Image lock mode for drive (auto/shared/exclusive/nolock)",
+    .enum_table = ImageLockMode_lookup,
+    .get = get_enum,
+    .set = set_enum,
+};
+
 /* --- BIOS CHS translation */
 
 QEMU_BUILD_BUG_ON(sizeof(BiosAtaTranslation) != sizeof(int));
