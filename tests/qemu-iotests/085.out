@@ -20,7 +20,7 @@ Formatting 'TEST_DIR/1-snapshot-v0.qcow2', fmt=qcow2 size=134217728 backing_file
 
 === Invalid command - missing snapshot-file ===
 
-{"error": {"class": "GenericError", "desc": "Parameter 'snapshot-file' is missing"}}
+{"error": {"class": "GenericError", "desc": "Invalid parameter type for 'snapshot-file', expected: string"}}
 
 
 === Create several transactional group snapshots ===
