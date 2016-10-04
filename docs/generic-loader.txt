@@ -8,7 +8,7 @@ The 'loader' device allows the user to load multiple images or values into
 QEMU at startup.
 
 Loading Data into Memory Values
----------------------
+-------------------------------
 The loader device allows memory values to be set from the command line. This
 can be done by following the syntax below:
 
@@ -36,7 +36,7 @@ An example of loading value 0x8000000e to address 0xfd1a0104 is:
     -device loader,addr=0xfd1a0104,data=0x8000000e,data-len=4
 
 Setting a CPU's Program Counter
----------------------
+-------------------------------
 The loader device allows the CPU's PC to be set from the command line. This
 can be done by following the syntax below:
 
@@ -55,7 +55,7 @@ An example of setting CPU 0's PC to 0x8000 is:
     -device loader,addr=0x8000,cpu-num=0
 
 Loading Files
----------------------
+-------------
 The loader device also allows files to be loaded into memory. This can be done
 similarly to setting memory values. The syntax is shown below:
 
@@ -82,3 +82,10 @@ with a '0x'.
 
 An example of loading an ELF file which CPU0 will boot is shown below:
     -device loader,file=./images/boot.elf,cpu-num=0
+
+Restrictions and ToDos
+----------------------
+ - At the moment it is just assumed that if you specify a cpu-num then you
+   want to set the PC as well. This might not always be the case. In future
+   the internal state 'set_pc' (which exists in the generic loader now) should
+   be exposed to the user so that they can choose if the PC is set or not.
