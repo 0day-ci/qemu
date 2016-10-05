@@ -45,6 +45,7 @@ typedef struct BDRVNBDState {
 
     /* For nbd_refresh_filename() */
     char *path, *host, *port, *export, *tlscredsid;
+    bool zero_init;
 } BDRVNBDState;
 
 static int nbd_parse_uri(const char *filename, QDict *options)
@@ -194,6 +195,7 @@ out:
 static SocketAddress *nbd_config(BDRVNBDState *s, QemuOpts *opts, Error **errp)
 {
     SocketAddress *saddr;
+    const char *zero_init;
 
     s->path = g_strdup(qemu_opt_get(opts, "path"));
     s->host = g_strdup(qemu_opt_get(opts, "host"));
@@ -231,6 +233,11 @@ static SocketAddress *nbd_config(BDRVNBDState *s, QemuOpts *opts, Error **errp)
     s->client.is_unix = saddr->type == SOCKET_ADDRESS_KIND_UNIX;
 
     s->export = g_strdup(qemu_opt_get(opts, "export"));
+
+    zero_init = qemu_opt_get(opts, "zero-init");
+    if (zero_init != NULL) {
+        s->zero_init = strcmp(zero_init, "on") == 0;
+    }
 
     return saddr;
 }
@@ -321,6 +328,11 @@ static QemuOptsList nbd_runtime_opts = {
             .name = "tls-creds",
             .type = QEMU_OPT_STRING,
             .help = "ID of the TLS credentials to use",
+        },
+        {
+            .name = "zero-init",
+            .type = QEMU_OPT_BOOL,
+            .help = "Zero-initialized image flag",
         },
     },
 };
@@ -483,6 +495,12 @@ static void nbd_refresh_filename(BlockDriverState *bs, QDict *options)
     bs->full_open_options = opts;
 }
 
+static int nbd_has_zero_init(BlockDriverState *bs)
+{
+    BDRVNBDState *s = bs->opaque;
+    return s->zero_init;
+}
+
 static BlockDriver bdrv_nbd = {
     .format_name                = "nbd",
     .protocol_name              = "nbd",
@@ -499,6 +517,7 @@ static BlockDriver bdrv_nbd = {
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
     .bdrv_refresh_filename      = nbd_refresh_filename,
+    .bdrv_has_zero_init         = nbd_has_zero_init,
 };
 
 static BlockDriver bdrv_nbd_tcp = {
@@ -517,6 +536,7 @@ static BlockDriver bdrv_nbd_tcp = {
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
     .bdrv_refresh_filename      = nbd_refresh_filename,
+    .bdrv_has_zero_init         = nbd_has_zero_init,
 };
 
 static BlockDriver bdrv_nbd_unix = {
@@ -535,6 +555,7 @@ static BlockDriver bdrv_nbd_unix = {
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
     .bdrv_refresh_filename      = nbd_refresh_filename,
+    .bdrv_has_zero_init         = nbd_has_zero_init,
 };
 
 static void bdrv_nbd_init(void)
