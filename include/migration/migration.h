@@ -35,6 +35,7 @@
 #define QEMU_VM_VMDESCRIPTION        0x06
 #define QEMU_VM_CONFIGURATION        0x07
 #define QEMU_VM_COMMAND              0x08
+#define QEMU_VM_SECTION_HEADER       0x09
 #define QEMU_VM_SECTION_FOOTER       0x7e
 
 struct MigrationParams {

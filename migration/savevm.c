@@ -677,7 +677,8 @@ void savevm_skip_section_footers(void)
 }
 
 /*
- * Write the header for device section (QEMU_VM_SECTION START/END/PART/FULL)
+ * Write the header for device section
+ * (QEMU_VM_SECTION START/END/PART/FULL/HEADER)
  */
 static void save_section_header(QEMUFile *f, SaveStateEntry *se,
                                 uint8_t section_type)
@@ -686,7 +687,8 @@ static void save_section_header(QEMUFile *f, SaveStateEntry *se,
     qemu_put_be32(f, se->section_id);
 
     if (section_type == QEMU_VM_SECTION_FULL ||
-        section_type == QEMU_VM_SECTION_START) {
+        section_type == QEMU_VM_SECTION_START ||
+        section_type == QEMU_VM_SECTION_HEADER) {
         /* ID string */
         size_t len = strlen(se->idstr);
         qemu_put_byte(f, len);
@@ -887,6 +889,10 @@ void qemu_savevm_state_begin(QEMUFile *f,
 
     trace_savevm_state_begin();
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        /* new section type since 2.8, we send devices header to destination
+         * at the migration beginning
+         */
+        save_section_header(f, se, QEMU_VM_SECTION_HEADER);
         if (!se->ops || !se->ops->set_params) {
             continue;
         }
@@ -1846,11 +1852,20 @@ static int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis)
 {
     uint8_t section_type;
     int ret;
+    uint32_t vid, sid;
+    SaveStateEntry *se;
 
     while ((section_type = qemu_get_byte(f)) != QEMU_VM_EOF) {
 
         trace_qemu_loadvm_state_section(section_type);
         switch (section_type) {
+        /* new section type since 2.8 */
+        case QEMU_VM_SECTION_HEADER:
+            ret = qemu_loadvm_section_header(f, mis, &se, &vid, &sid);
+            if (ret < 0) {
+                return ret;
+            }
+            break;
         case QEMU_VM_SECTION_START:
         case QEMU_VM_SECTION_FULL:
             ret = qemu_loadvm_section_start_full(f, mis);
