@@ -1729,46 +1729,63 @@ void loadvm_free_handlers(MigrationIncomingState *mis)
     }
 }
 
+
 static int
-qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
+qemu_loadvm_section_header(QEMUFile *f, MigrationIncomingState *mis,
+                           SaveStateEntry **se,
+                           uint32_t *version_id, uint32_t *section_id)
 {
-    uint32_t instance_id, version_id, section_id;
-    SaveStateEntry *se;
-    LoadStateEntry *le;
+    uint32_t instance_id;
     char idstr[256];
-    int ret;
 
     /* Read section start */
-    section_id = qemu_get_be32(f);
+    *section_id = qemu_get_be32(f);
     if (!qemu_get_counted_string(f, idstr)) {
         error_report("Unable to read ID string for section %u",
-                     section_id);
+                     *section_id);
         return -EINVAL;
     }
     instance_id = qemu_get_be32(f);
-    version_id = qemu_get_be32(f);
+    *version_id = qemu_get_be32(f);
 
-    trace_qemu_loadvm_state_section_startfull(section_id, idstr,
-            instance_id, version_id);
+    trace_qemu_loadvm_state_section_startfull(*section_id, idstr,
+            instance_id, *version_id);
     /* Find savevm section */
-    se = find_se(idstr, instance_id);
-    if (se == NULL) {
+    *se = find_se(idstr, instance_id);
+    if (*se == NULL) {
         error_report("Unknown savevm section or instance '%s' %d",
                      idstr, instance_id);
         return -EINVAL;
     }
 
     /* Validate version */
-    if (version_id > se->version_id) {
+    if (*version_id > (*se)->version_id) {
         error_report("savevm: unsupported version %d for '%s' v%d",
-                     version_id, idstr, se->version_id);
+                     *version_id, idstr, (*se)->version_id);
         return -EINVAL;
     }
 
     /* Validate if it is a device's state */
-    if (xen_enabled() && se->is_ram) {
+    if (xen_enabled() && (*se)->is_ram) {
         error_report("loadvm: %s RAM loading not allowed on Xen", idstr);
         return -EINVAL;
+    }
+
+    return 0;
+}
+
+static int
+qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
+{
+    uint32_t version_id, section_id;
+    SaveStateEntry *se;
+    LoadStateEntry *le;
+    char idstr[256];
+    int ret;
+
+    ret = qemu_loadvm_section_header(f, mis, &se, &version_id, &section_id);
+    if (ret) {
+        return ret;
     }
 
     /* Add entry */
@@ -1781,8 +1798,8 @@ qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
 
     ret = vmstate_load(f, le->se, le->version_id);
     if (ret < 0) {
-        error_report("error while loading state for instance 0x%x of"
-                     " device '%s'", instance_id, idstr);
+        error_report("error while loading state for"
+                     " device '%s'", idstr);
         return ret;
     }
     if (!check_section_footer(f, le)) {
