@@ -197,7 +197,9 @@ DIFFERENCES WITH LINUX
   critical section to become an updater.
 
 - atomic_rcu_read and atomic_rcu_set replace rcu_dereference and
-  rcu_assign_pointer.  They take a _pointer_ to the variable being accessed.
+  rcu_assign_pointer.  Note that although both atomic_rcu_read and
+  rcu_dereference take a _pointer_ to the variable being accessed,
+  atomic_rcu_read dereferences the pointer whereas rcu_dereference does not.
 
 - call_rcu is a macro that has an extra argument (the name of the first
   field in the struct, which must be a struct rcu_head), and expects the
