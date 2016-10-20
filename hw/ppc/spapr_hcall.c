@@ -880,6 +880,47 @@ static target_ulong h_set_mode(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     return ret;
 }
 
+static void do_sys_reset(CPUState *cs, void *arg)
+{
+    cpu_synchronize_state(cs);
+    ppc_cpu_do_system_reset(cs);
+}
+
+static target_ulong h_signal_sys_reset(PowerPCCPU *cpu,
+                                       sPAPRMachineState *spapr,
+                                       target_ulong opcode, target_ulong *args)
+{
+    target_long target = args[0];
+    CPUState *cs;
+
+    if (target < H_SIGNAL_SYS_RESET_ALLBUTSELF) {
+        return H_PARAMETER;
+    }
+
+    CPU_FOREACH(cs) {
+        PowerPCCPU *c = POWERPC_CPU(cs);
+
+        if (cpu->cpu_dt_id == target) {
+            run_on_cpu(cs, do_sys_reset, NULL);
+            return H_SUCCESS;
+        }
+
+        if (target == H_SIGNAL_SYS_RESET_ALLBUTSELF) {
+            if (c == cpu) {
+                continue;
+            }
+        }
+
+        run_on_cpu(cs, do_sys_reset, NULL);
+    }
+
+    if (target >= 0) {
+        return H_PARAMETER;
+    }
+
+    return H_SUCCESS;
+}
+
 /*
  * Return the offset to the requested option vector @vector in the
  * option vector table @table.
@@ -1113,6 +1154,7 @@ static void hypercall_register_types(void)
     /* hcall-splpar */
     spapr_register_hypercall(H_REGISTER_VPA, h_register_vpa);
     spapr_register_hypercall(H_CEDE, h_cede);
+    spapr_register_hypercall(H_SIGNAL_SYS_RESET, h_signal_sys_reset);
 
     /* processor register resource access h-calls */
     spapr_register_hypercall(H_SET_SPRG0, h_set_sprg0);
