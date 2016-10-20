@@ -390,9 +390,13 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             /* indicate that we resumed from power save mode */
             msr |= 0x10000;
             new_msr |= ((target_ulong)1 << MSR_ME);
+            new_msr |= (target_ulong)MSR_HVB;
+        } else {
+	    /* The ISA specifies the HV bit is set when the hardware interrupt
+	     * is raised, however when hypervisors deliver the exception to
+	     * guests, it should not be set.
+	     */
         }
-
-        new_msr |= (target_ulong)MSR_HVB;
         ail = 0;
         break;
     case POWERPC_EXCP_DSEG:      /* Data segment exception                   */
