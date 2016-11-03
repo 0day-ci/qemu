@@ -2273,6 +2273,7 @@ char *qemu_find_file(int type, const char *name)
     int i;
     const char *subdir;
     char *buf;
+    struct stat file_stat;
 
     /* Try the name as a straight path first */
     if (access(name, R_OK) == 0) {
@@ -2293,7 +2294,13 @@ char *qemu_find_file(int type, const char *name)
 
     for (i = 0; i < data_dir_idx; i++) {
         buf = g_strdup_printf("%s/%s%s", data_dir[i], subdir, name);
-        if (access(buf, R_OK) == 0) {
+        if (stat(buf, &file_stat) < 0) {
+            error_report("can not get file '%s' stat: %s\n", buf,
+                         strerror(errno));
+            g_free(buf);
+            return NULL;
+        }
+        if (!S_ISDIR(file_stat.st_mode) && access(buf, R_OK) == 0) {
             trace_load_file(name, buf);
             return buf;
         }
