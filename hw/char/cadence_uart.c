@@ -487,6 +487,19 @@ static int cadence_uart_post_load(void *opaque, int version_id)
 {
     CadenceUARTState *s = opaque;
 
+    /* Ensure these two aren't invalid numbers */
+    if (s->r[R_BRGR] <= 1) {
+        /* Value is invalid, reset it */
+        s->r[R_BRGR] = 0x0000028B;
+    }
+    if (s->r[R_BDIV] <= 3) {
+        /* Value is invalid, reset it */
+        s->r[R_BDIV] = 0x0000000F;
+    }
+
+    s->r[R_BRGR] = s->r[R_BRGR] & 0xFFFF;
+    s->r[R_BDIV] = s->r[R_BDIV] & 0xFF;
+
     uart_parameters_setup(s);
     uart_update_status(s);
     return 0;
