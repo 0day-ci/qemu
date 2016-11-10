@@ -337,6 +337,9 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
         }
     }
 
+    vhost_set_peer_connection(ncs[i-1].peer,
+                              VHOST_USER_SET_PEER_CONNECTION_INIT);
+
     return 0;
 
 err_start:
@@ -435,6 +438,18 @@ int vhost_set_vring_enable(NetClientState *nc, int enable)
     return 0;
 }
 
+int vhost_set_peer_connection(NetClientState *nc, uint64_t cmd)
+{
+    VHostNetState *net = get_vhost_net(nc);
+    const VhostOps *vhost_ops = net->dev.vhost_ops;
+
+    if (vhost_ops && vhost_ops->vhost_set_peer_connection) {
+        return vhost_ops->vhost_set_peer_connection(&net->dev, cmd);
+    }
+
+    return 0;
+}
+
 #else
 uint64_t vhost_net_get_max_queues(VHostNetState *net)
 {
@@ -498,6 +513,11 @@ VHostNetState *get_vhost_net(NetClientState *nc)
 }
 
 int vhost_set_vring_enable(NetClientState *nc, int enable)
+{
+    return 0;
+}
+
+int vhost_set_peer_connection(NetClientState *nc, uint64_t cmd)
 {
     return 0;
 }

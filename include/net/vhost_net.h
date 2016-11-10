@@ -33,6 +33,11 @@ VHostNetState *get_vhost_net(NetClientState *nc);
 
 int vhost_set_vring_enable(NetClientState * nc, int enable);
 
+#define VHOST_USER_SET_PEER_CONNECTION_OFF  0
+#define VHOST_USER_SET_PEER_CONNECTION_ON   1
+#define VHOST_USER_SET_PEER_CONNECTION_INIT 2
+int vhost_set_peer_connection(NetClientState *nc, uint64_t cmd);
+
 uint64_t vhost_net_get_acked_features(VHostNetState *net);
 
 #endif

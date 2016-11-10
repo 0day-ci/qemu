@@ -124,6 +124,8 @@ static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
         return 0;
     }
 
+    msg->conn_id = chr->conn_id;
+
     if (qemu_chr_fe_set_msgfds(chr, fds, fd_num) < 0) {
         error_report("Failed to set msg fds.");
         return -1;
@@ -313,6 +315,22 @@ static int vhost_user_set_vring_enable(struct vhost_dev *dev, int enable)
     return 0;
 }
 
+static int vhost_user_set_peer_connection(struct vhost_dev *dev, uint64_t cmd)
+{
+    VhostUserMsg msg = {
+        .request = VHOST_USER_SET_PEER_CONNECTION,
+        .flags = VHOST_USER_VERSION,
+        .payload.u64 = cmd,
+        .size = sizeof(msg.payload.u64),
+    };
+
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
 static int vhost_user_get_vring_base(struct vhost_dev *dev,
                                      struct vhost_vring_state *ring)
 {
@@ -448,6 +466,28 @@ static int vhost_user_get_u64(struct vhost_dev *dev, int request, uint64_t *u64)
     return 0;
 }
 
+static bool vhost_user_need_conn_id(struct vhost_dev *dev)
+{
+    CharDriverState *chr = dev->opaque;
+
+    if(chr->conn_id == ANONYMOUS_CLIENT)
+        return 1;
+    else
+        return 0;
+}
+
+static int vhost_user_get_conn_id(struct vhost_dev *dev)
+{
+    int ret;
+    uint64_t conn_id;
+    CharDriverState *chr = dev->opaque;
+
+    ret = vhost_user_get_u64(dev, VHOST_USER_GET_CONN_ID, &conn_id);
+    if (!ret)
+        chr->conn_id = conn_id;
+    return ret;
+}
+
 static int vhost_user_get_features(struct vhost_dev *dev, uint64_t *features)
 {
     return vhost_user_get_u64(dev, VHOST_USER_GET_FEATURES, features);
@@ -481,6 +521,18 @@ static int vhost_user_reset_device(struct vhost_dev *dev)
     return 0;
 }
 
+static int vhost_user_set_dev_info(struct vhost_dev *dev, uint16_t virtio_id)
+{
+    VhostUserMsg msg = {
+        .request = VHOST_USER_SET_DEV_INFO,
+        .flags = VHOST_USER_VERSION,
+        .payload.dev_info.virtio_id = virtio_id,
+        .size = sizeof(msg.payload.dev_info),
+    };
+
+    return vhost_user_write(dev, &msg, NULL, 0);
+}
+
 static int vhost_user_init(struct vhost_dev *dev, void *opaque)
 {
     uint64_t features;
@@ -489,6 +541,12 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
 
     dev->opaque = opaque;
+    if (vhost_user_need_conn_id(dev)) {
+        err = vhost_user_get_conn_id(dev);
+        if (err < 0) {
+            return err;
+        }
+    }
 
     err = vhost_user_get_features(dev, &features);
     if (err < 0) {
@@ -508,6 +566,13 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
         err = vhost_user_set_protocol_features(dev, dev->protocol_features);
         if (err < 0) {
             return err;
+        }
+
+        if (dev->protocol_features & (1ULL << VHOST_USER_PROTOCOL_F_VHOST_PCI)) {
+            err = vhost_user_set_dev_info(dev, VIRTIO_ID_NET);
+            if (err < 0) {
+                return err;
+            }
         }
 
         /* query the max queues we support if backend supports Multiple Queue */
@@ -621,6 +686,7 @@ const VhostOps user_ops = {
         .vhost_reset_device = vhost_user_reset_device,
         .vhost_get_vq_index = vhost_user_get_vq_index,
         .vhost_set_vring_enable = vhost_user_set_vring_enable,
+        .vhost_set_peer_connection = vhost_user_set_peer_connection,
         .vhost_requires_shm_log = vhost_user_requires_shm_log,
         .vhost_migration_done = vhost_user_migration_done,
         .vhost_backend_can_merge = vhost_user_can_merge,
