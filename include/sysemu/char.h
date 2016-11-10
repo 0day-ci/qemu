@@ -58,17 +58,24 @@ struct ParallelIOArg {
 
 typedef void IOEventHandler(void *opaque, int event);
 
+#define MAX_CLIENTS 256
+#define ANONYMOUS_CLIENT (~((uint64_t)0))
 struct CharDriverState {
     QemuMutex chr_write_lock;
     void (*init)(struct CharDriverState *s);
     int (*chr_write)(struct CharDriverState *s, const uint8_t *buf, int len);
+    int (*chr_write_n)(struct CharDriverState *s, uint64_t id, const uint8_t *buf, int len);
     int (*chr_sync_read)(struct CharDriverState *s,
+                         const uint8_t *buf, int len);
+    int (*chr_sync_read_n)(struct CharDriverState *s, uint64_t id,
                          const uint8_t *buf, int len);
     GSource *(*chr_add_watch)(struct CharDriverState *s, GIOCondition cond);
     void (*chr_update_read_handler)(struct CharDriverState *s);
     int (*chr_ioctl)(struct CharDriverState *s, int cmd, void *arg);
     int (*get_msgfds)(struct CharDriverState *s, int* fds, int num);
+    int (*get_msgfds_n)(struct CharDriverState *s, uint64_t id, int* fds, int num);
     int (*set_msgfds)(struct CharDriverState *s, int *fds, int num);
+    int (*set_msgfds_n)(struct CharDriverState *s, uint64_t id, int *fds, int num);
     int (*chr_add_client)(struct CharDriverState *chr, int fd);
     int (*chr_wait_connected)(struct CharDriverState *chr, Error **errp);
     IOEventHandler *chr_event;
@@ -77,6 +84,7 @@ struct CharDriverState {
     void *handler_opaque;
     void (*chr_close)(struct CharDriverState *chr);
     void (*chr_disconnect)(struct CharDriverState *chr);
+    void (*chr_disconnect_n)(struct CharDriverState *chr, uint64_t id);
     void (*chr_accept_input)(struct CharDriverState *chr);
     void (*chr_set_echo)(struct CharDriverState *chr, bool echo);
     void (*chr_set_fe_open)(struct CharDriverState *chr, int fe_open);
@@ -91,7 +99,10 @@ struct CharDriverState {
     int explicit_be_open;
     int avail_connections;
     int is_mux;
-    guint fd_in_tag;
+    guint fd_in_tag[MAX_CLIENTS];
+    uint64_t max_connections;
+    unsigned long *conn_bitmap;
+    uint64_t conn_id;
     QemuOpts *opts;
     bool replay;
     QTAILQ_ENTRY(CharDriverState) next;
@@ -281,6 +292,20 @@ int qemu_chr_fe_write(CharDriverState *s, const uint8_t *buf, int len);
 int qemu_chr_fe_write_all(CharDriverState *s, const uint8_t *buf, int len);
 
 /**
+ * @qemu_chr_fe_write_all_n:
+ *
+ * Write data to the selected character backend from the front end.
+ *
+ * @id  the connection id of the character backend
+ * @buf the data
+ * @len the number of bytes to send
+ *
+ * Returns: the number of bytes consumed
+ */
+int qemu_chr_fe_write_all_n(CharDriverState *s, uint64_t id,
+                            const uint8_t *buf, int len);
+
+/**
  * @qemu_chr_fe_read_all:
  *
  * Read data to a buffer from the back end.
@@ -291,6 +316,20 @@ int qemu_chr_fe_write_all(CharDriverState *s, const uint8_t *buf, int len);
  * Returns: the number of bytes read
  */
 int qemu_chr_fe_read_all(CharDriverState *s, uint8_t *buf, int len);
+
+/**
+ * @qemu_chr_fe_read_all_n:
+ *
+ * Read data to a buffer from the selected back end.
+ *
+ * @id  the connection id
+ * @buf the data buffer
+ * @len the number of bytes to read
+ *
+ * Returns: the number of bytes read
+ */
+int qemu_chr_fe_read_all_n(CharDriverState *s, uint64_t id,
+                           uint8_t *buf, int len);
 
 /**
  * @qemu_chr_fe_ioctl:
@@ -331,6 +370,19 @@ int qemu_chr_fe_get_msgfd(CharDriverState *s);
  */
 int qemu_chr_fe_get_msgfds(CharDriverState *s, int *fds, int num);
 
+
+/**
+ * @qemu_chr_fe_get_msgfds_n:
+ *
+ * The multi-client version of @qemu_chr_fe_get_msgfds.
+ *
+ * Returns: -1 if fd passing isn't supported or there are no pending file
+ *          descriptors.  If file descriptors are returned, subsequent calls to
+ *          this function will return -1 until a client sends a new set of file
+ *          descriptors.
+ */
+int qemu_chr_fe_get_msgfds_n(CharDriverState *s, uint64_t id, int *fds, int num);
+
 /**
  * @qemu_chr_fe_set_msgfds:
  *
@@ -343,6 +395,16 @@ int qemu_chr_fe_get_msgfds(CharDriverState *s, int *fds, int num);
  * Returns: -1 if fd passing isn't supported.
  */
 int qemu_chr_fe_set_msgfds(CharDriverState *s, int *fds, int num);
+
+/**
+ * @qemu_chr_fe_set_msgfds_n:
+ *
+ * The multi-client version of @qemu_chr_fe_set_msgfds.
+ *
+ * Returns: -1 if fd passing isn't supported.
+ */
+int qemu_chr_fe_set_msgfds_n(CharDriverState *s, uint64_t id, int *fds, int num);
+
 
 /**
  * @qemu_chr_fe_claim:

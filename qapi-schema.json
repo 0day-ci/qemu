@@ -3327,7 +3327,8 @@
                                      '*wait'      : 'bool',
                                      '*nodelay'   : 'bool',
                                      '*telnet'    : 'bool',
-                                     '*reconnect' : 'int' },
+                                     '*reconnect' : 'int' ,
+                                     '*connections' : 'uint64' },
   'base': 'ChardevCommon' }
 
 ##
