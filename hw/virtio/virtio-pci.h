@@ -25,6 +25,7 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-input.h"
 #include "hw/virtio/virtio-gpu.h"
+#include "hw/virtio/vhost-pci-net.h"
 #ifdef CONFIG_VIRTFS
 #include "hw/9pfs/virtio-9p.h"
 #endif
@@ -44,6 +45,7 @@ typedef struct VirtIOInputPCI VirtIOInputPCI;
 typedef struct VirtIOInputHIDPCI VirtIOInputHIDPCI;
 typedef struct VirtIOInputHostPCI VirtIOInputHostPCI;
 typedef struct VirtIOGPUPCI VirtIOGPUPCI;
+typedef struct VhostPCINetPCI VhostPCINetPCI;
 
 /* virtio-pci-bus */
 
@@ -244,6 +246,18 @@ struct VirtIOSerialPCI {
 struct VirtIONetPCI {
     VirtIOPCIProxy parent_obj;
     VirtIONet vdev;
+};
+
+/*
+ * vhost-pci-net-pci: This extends VirtioPCIProxy.
+ */
+#define TYPE_VHOST_PCI_NET_PCI "vhost-pci-net-pci"
+#define VHOST_PCI_NET_PCI(obj) \
+        OBJECT_CHECK(VhostPCINetPCI, (obj), TYPE_VHOST_PCI_NET_PCI)
+
+struct VhostPCINetPCI {
+    VirtIOPCIProxy parent_obj;
+    VhostPCINet vdev;
 };
 
 /*

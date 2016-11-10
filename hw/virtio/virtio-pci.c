@@ -25,6 +25,7 @@
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/virtio-balloon.h"
 #include "hw/virtio/virtio-input.h"
+#include "hw/virtio/vhost-pci-net.h"
 #include "hw/pci/pci.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -2416,6 +2417,71 @@ static const TypeInfo virtio_host_pci_info = {
 };
 #endif
 
+/* vhost-pci-net */
+
+static Property vhost_pci_net_pci_properties[] = {
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void vhost_pci_net_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
+{
+    DeviceState *qdev = DEVICE(vpci_dev);
+    VhostPCINetPCI *dev = VHOST_PCI_NET_PCI(vpci_dev);
+    DeviceState *vdev = DEVICE(&dev->vdev);
+    PeerConnectionTable *ent;
+
+//    virtio_net_set_netclient_name(&dev->vdev, qdev->id,
+//                                  object_get_typename(OBJECT(qdev)));
+    qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
+
+    ent = vp_server_find_table_ent(qdev->id);
+    if (ent == NULL)
+        printf("%s called: no entry found \n", __func__);
+
+    /* Sanity Check */
+    if (ent->virtio_id != VIRTIO_ID_NET)
+        printf("%s called: device type doesn't match \n", __func__);
+    ent->bar_id = 2;
+    pci_register_bar(&vpci_dev->pci_dev, ent->bar_id,
+                      PCI_BASE_ADDRESS_SPACE_MEMORY |
+                      PCI_BASE_ADDRESS_MEM_PREFETCH |
+                      PCI_BASE_ADDRESS_MEM_TYPE_64,
+                      ent->bar_mr);
+    vhost_pci_net_set_max_rxqs(&dev->vdev, ent->vq_num / 2);
+    vhost_pci_net_init_device_features(&dev->vdev, ent->peer_feature_bits);
+    object_property_set_bool(OBJECT(vdev), true, "realized", errp);
+}
+
+static void vhost_pci_net_pci_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    VirtioPCIClass *vpciklass = VIRTIO_PCI_CLASS(klass);
+
+    k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
+    k->device_id = PCI_DEVICE_ID_VHOST_PCI_NET;
+    k->class_id = PCI_CLASS_NETWORK_ETHERNET;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
+    dc->props = vhost_pci_net_pci_properties;
+    vpciklass->realize = vhost_pci_net_pci_realize;
+}
+
+static void vhost_pci_net_pci_instance_init(Object *obj)
+{
+    VhostPCINetPCI *dev = VHOST_PCI_NET_PCI(obj);
+
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VHOST_PCI_NET);
+}
+
+static const TypeInfo vhost_pci_net_pci_info = {
+    .name          = TYPE_VHOST_PCI_NET_PCI,
+    .parent        = TYPE_VIRTIO_PCI,
+    .instance_size = sizeof(VhostPCINetPCI),
+    .instance_init = vhost_pci_net_pci_instance_init,
+    .class_init    = vhost_pci_net_pci_class_init,
+};
+
 /* virtio-pci-bus */
 
 static void virtio_pci_bus_new(VirtioBusState *bus, size_t bus_size,
@@ -2482,6 +2548,7 @@ static void virtio_pci_register_types(void)
     type_register_static(&virtio_balloon_pci_info);
     type_register_static(&virtio_serial_pci_info);
     type_register_static(&virtio_net_pci_info);
+    type_register_static(&vhost_pci_net_pci_info);
 #ifdef CONFIG_VHOST_SCSI
     type_register_static(&vhost_scsi_pci_info);
 #endif
