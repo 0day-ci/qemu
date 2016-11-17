@@ -381,22 +381,10 @@ void spapr_vlan_create(VIOsPAPRBus *bus, NICInfo *nd)
 static int spapr_vlan_devnode(VIOsPAPRDevice *dev, void *fdt, int node_off)
 {
     VIOsPAPRVLANDevice *vdev = VIO_SPAPR_VLAN_DEVICE(dev);
-    uint8_t padded_mac[8] = {0, 0};
     int ret;
 
-    /* Some old phyp versions give the mac address in an 8-byte
-     * property.  The kernel driver has an insane workaround for this;
-     * rather than doing the obvious thing and checking the property
-     * length, it checks whether the first byte has 0b10 in the low
-     * bits.  If a correct 6-byte property has a different first byte
-     * the kernel will get the wrong mac address, overrunning its
-     * buffer in the process (read only, thank goodness).
-     *
-     * Here we workaround the kernel workaround by always supplying an
-     * 8-byte property, with the mac address in the last six bytes */
-    memcpy(&padded_mac[2], &vdev->nicconf.macaddr, ETH_ALEN);
     ret = fdt_setprop(fdt, node_off, "local-mac-address",
-                      padded_mac, sizeof(padded_mac));
+                      &vdev->nicconf.macaddr, ETH_ALEN);
     if (ret < 0) {
         return ret;
     }
