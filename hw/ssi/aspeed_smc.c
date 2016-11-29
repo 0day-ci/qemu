@@ -414,15 +414,6 @@ static void aspeed_smc_flash_update_cs(AspeedSMCFlash *fl)
     qemu_set_irq(s->cs_lines[fl->id], aspeed_smc_is_ce_stop_active(fl));
 }
 
-static void aspeed_smc_update_cs(const AspeedSMCState *s)
-{
-    int i;
-
-    for (i = 0; i < s->num_cs; ++i) {
-        aspeed_smc_flash_update_cs(&s->flashes[i]);
-    }
-}
-
 static void aspeed_smc_reset(DeviceState *d)
 {
     AspeedSMCState *s = ASPEED_SMC(d);
@@ -436,6 +427,7 @@ static void aspeed_smc_reset(DeviceState *d)
     /* Unselect all slaves */
     for (i = 0; i < s->num_cs; ++i) {
         s->regs[s->r_ctrl0 + i] |= CTRL_CE_STOP_ACTIVE;
+        qemu_set_irq(s->cs_lines[i], true);
     }
 
     /* setup default segment register values for all */
@@ -443,8 +435,6 @@ static void aspeed_smc_reset(DeviceState *d)
         s->regs[R_SEG_ADDR0 + i] =
             aspeed_smc_segment_to_reg(&s->ctrl->segments[i]);
     }
-
-    aspeed_smc_update_cs(s);
 }
 
 static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
@@ -494,8 +484,9 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
         addr == s->r_ce_ctrl) {
         s->regs[addr] = value;
     } else if (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + s->num_cs) {
+        int cs = addr - s->r_ctrl0;
         s->regs[addr] = value;
-        aspeed_smc_update_cs(s);
+        aspeed_smc_flash_update_cs(&s->flashes[cs]);
     } else if (addr >= R_SEG_ADDR0 &&
                addr < R_SEG_ADDR0 + s->ctrl->max_slaves) {
         int cs = addr - R_SEG_ADDR0;
