@@ -71,7 +71,9 @@
 #define R_CTRL0           (0x10 / 4)
 #define   CTRL_CMD_SHIFT           16
 #define   CTRL_CMD_MASK            0xff
+#define   CTRL_DUMMY_HIGH_SHIFT    14
 #define   CTRL_AST2400_SPI_4BYTE   (1 << 13)
+#define   CTRL_DUMMY_LOW_SHIFT     6 /* 2 bits [7:6] */
 #define   CTRL_CE_STOP_ACTIVE      (1 << 2)
 #define   CTRL_CMD_MODE_MASK       0x3
 #define     CTRL_READMODE          0x0
@@ -151,6 +153,7 @@
 #define SPI_OP_WRDI       0x04    /* Write disable */
 #define SPI_OP_RDSR       0x05    /* Read status register */
 #define SPI_OP_WREN       0x06    /* Write enable */
+#define SPI_OP_READ_FAST  0x0b    /* Read data bytes (high frequency) */
 
 /* Used for Macronix and Winbond flashes. */
 #define SPI_OP_EN4B       0xb7    /* Enter 4-byte mode */
@@ -510,6 +513,12 @@ static void aspeed_smc_flash_setup_read(AspeedSMCFlash *fl, uint32_t addr)
     /* access can not exceed CS segment */
     addr = aspeed_smc_check_segment_addr(fl, addr);
 
+    /*
+     * Remember command as we might need to send dummy bytes before
+     * reading data
+     */
+    fl->cmd = cmd;
+
     /* TODO: do we have to send 4BYTE each time ? */
     if (aspeed_smc_flash_is_4byte(fl)) {
         ssi_transfer(s->spi, SPI_OP_EN4B);
@@ -525,27 +534,50 @@ static void aspeed_smc_flash_setup_read(AspeedSMCFlash *fl, uint32_t addr)
     ssi_transfer(s->spi, (addr & 0xff));
 }
 
-static uint64_t aspeed_smc_flash_read(void *opaque, hwaddr addr, unsigned size)
+static int aspeed_smc_flash_dummies(const AspeedSMCFlash *fl)
 {
-    AspeedSMCFlash *fl = opaque;
-    const AspeedSMCState *s = fl->controller;
+    AspeedSMCState *s = fl->controller;
+    uint32_t r_ctrl0 = s->regs[s->r_ctrl0 + fl->id];
+    uint32_t dummy_high = (r_ctrl0 >> CTRL_DUMMY_HIGH_SHIFT) & 0x1;
+    uint32_t dummy_low = (r_ctrl0 >> CTRL_DUMMY_LOW_SHIFT) & 0x3;
+
+    return ((dummy_high << 2) | dummy_low) * 8;
+}
+
+static uint64_t aspeed_smc_flash_do_read(AspeedSMCFlash *fl, unsigned size)
+{
+    AspeedSMCState *s = fl->controller;
     uint64_t ret = 0;
     int i;
 
+    if (fl->cmd == SPI_OP_READ_FAST) {
+        for (i = 0; i < aspeed_smc_flash_dummies(fl); i++) {
+            ssi_transfer(s->spi, 0x0);
+        }
+    }
+    fl->cmd = 0;
+
+    for (i = 0; i < size; i++) {
+        ret |= ssi_transfer(s->spi, 0x0) << (8 * i);
+    }
+    return ret;
+}
+
+static uint64_t aspeed_smc_flash_read(void *opaque, hwaddr addr, unsigned size)
+{
+    AspeedSMCFlash *fl = opaque;
+    uint64_t ret = 0;
+
     switch (aspeed_smc_flash_mode(fl)) {
     case CTRL_USERMODE:
-        for (i = 0; i < size; i++) {
-            ret |= ssi_transfer(s->spi, 0x0) << (8 * i);
-        }
+        ret = aspeed_smc_flash_do_read(fl, size);
         break;
     case CTRL_READMODE:
     case CTRL_FREADMODE:
         aspeed_smc_flash_select(fl);
         aspeed_smc_flash_setup_read(fl, addr);
 
-        for (i = 0; i < size; i++) {
-            ret |= ssi_transfer(s->spi, 0x0) << (8 * i);
-        }
+        ret = aspeed_smc_flash_do_read(fl, size);
 
         aspeed_smc_flash_unselect(fl);
         break;
@@ -596,6 +628,15 @@ static void aspeed_smc_flash_write(void *opaque, hwaddr addr, uint64_t data,
 
     switch (aspeed_smc_flash_mode(fl)) {
     case CTRL_USERMODE:
+        /*
+         * First write after chip select is the chip command. Remember
+         * it as we might need to send dummy bytes before reading
+         * data. It will be reseted when the chip is unselected.
+         */
+        if (!fl->cmd) {
+            fl->cmd = data & 0xff;
+        }
+
         for (i = 0; i < size; i++) {
             ssi_transfer(s->spi, (data >> (8 * i)) & 0xff);
         }
@@ -629,6 +670,7 @@ static const MemoryRegionOps aspeed_smc_flash_ops = {
 static void aspeed_smc_flash_update_cs(AspeedSMCFlash *fl)
 {
     AspeedSMCState *s = fl->controller;
+    fl->cmd = 0;
     qemu_set_irq(s->cs_lines[fl->id], aspeed_smc_is_ce_stop_active(fl));
 }
 
