@@ -36,6 +36,8 @@ typedef struct AspeedWDTState {
     uint32_t reg_reload_value;
     uint32_t reg_restart;
     uint32_t reg_ctrl;
+
+    uint32_t pclk_freq;
 } AspeedWDTState;
 
 #endif  /* ASPEED_WDT_H */

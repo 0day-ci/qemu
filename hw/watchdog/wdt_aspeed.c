@@ -7,10 +7,12 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qapi/error.h"
 #include "sysemu/watchdog.h"
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "hw/watchdog/wdt_aspeed.h"
+#include "hw/misc/aspeed_scu.h"
 
 #define WDT_IO_REGION_SIZE      0x20
 
@@ -56,8 +58,6 @@ static uint64_t aspeed_wdt_read(void *opaque, hwaddr offset, unsigned size)
 
 }
 
-#define PCLK_HZ 24000000
-
 static void aspeed_wdt_write(void *opaque, hwaddr offset, uint64_t data,
                              unsigned size)
 {
@@ -82,7 +82,7 @@ static void aspeed_wdt_write(void *opaque, hwaddr offset, uint64_t data,
 
             if (pclk) {
                 reload = muldiv64(s->reg_reload_value, NANOSECONDS_PER_SECOND,
-                                  PCLK_HZ) ;
+                                  s->pclk_freq);
             } else {
                 reload = s->reg_reload_value * 1000;
             }
@@ -99,7 +99,7 @@ static void aspeed_wdt_write(void *opaque, hwaddr offset, uint64_t data,
 
             if (pclk) {
                 reload = muldiv64(s->reg_reload_value, NANOSECONDS_PER_SECOND,
-                                  PCLK_HZ);
+                                  s->pclk_freq);
             } else {
                 reload = s->reg_reload_value * 1000;
             }
@@ -177,9 +177,20 @@ static void aspeed_wdt_realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     AspeedWDTState *s = ASPEED_WDT(dev);
+    Object *obj;
+    Error *err = NULL;
 
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, aspeed_wdt_timer_expired,
                             dev);
+
+    obj = object_property_get_link(OBJECT(dev), "scu", &err);
+    if (!obj) {
+        error_setg(errp, "%s: required link 'scu' not found: %s",
+                   __func__, error_get_pretty(err));
+        return;
+    }
+
+    s->pclk_freq = aspeed_scu_get_clk(ASPEED_SCU(obj));
 
     memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_wdt_ops, s,
                           TYPE_ASPEED_WDT, WDT_IO_REGION_SIZE);
