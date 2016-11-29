@@ -685,6 +685,11 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          */
         cpu->id_pfr1 &= ~0xf0;
         cpu->id_aa64pfr0 &= ~0xf000;
+
+        /* Also disable VBAR support for boards using a arm1176 CPU
+         * without EL3.
+         */
+        unset_feature(env, ARM_FEATURE_VBAR);
     }
 
     if (!cpu->has_pmu || !kvm_enabled()) {
@@ -911,6 +916,7 @@ static void arm1176_initfn(Object *obj)
 
     cpu->dtb_compatible = "arm,arm1176";
     set_feature(&cpu->env, ARM_FEATURE_V6K);
+    set_feature(&cpu->env, ARM_FEATURE_VBAR);
     set_feature(&cpu->env, ARM_FEATURE_VFP);
     set_feature(&cpu->env, ARM_FEATURE_VAPA);
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
