@@ -138,6 +138,8 @@ static void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
         DriveInfo *dinfo = drive_get_next(IF_MTD);
         qemu_irq cs_line;
 
+        flashtype = dinfo && dinfo->model ? dinfo->model : flashtype;
+
         /*
          * FIXME: check that we are not using a flash module exceeding
          * the controller segment size
