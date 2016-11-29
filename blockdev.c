@@ -742,6 +742,10 @@ QemuOptsList qemu_legacy_drive_opts = {
             .type = QEMU_OPT_STRING,
             .help = "pci address (virtio only)",
         },{
+            .name = "model",
+            .type = QEMU_OPT_STRING,
+            .help = "flash model (mtd only)",
+        },{
             .name = "serial",
             .type = QEMU_OPT_STRING,
             .help = "disk serial number",
@@ -790,6 +794,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     bool read_only = false;
     bool copy_on_read;
     const char *serial;
+    const char *model;
     const char *filename;
     Error *local_err = NULL;
     int i;
@@ -1076,6 +1081,12 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         qdict_put(bs_opts, "rerror", qstring_from_str(rerror));
     }
 
+    model = qemu_opt_get(legacy_opts, "model");
+    if (model && type != IF_MTD) {
+        error_report("model is not supported by this bus type");
+        goto fail;
+    }
+
     /* Actual block device init: Functionality shared with blockdev-add */
     blk = blockdev_init(filename, bs_opts, &local_err);
     bs_opts = NULL;
@@ -1102,6 +1113,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     dinfo->unit = unit_id;
     dinfo->devaddr = devaddr;
     dinfo->serial = g_strdup(serial);
+    dinfo->model = g_strdup(model);
 
     blk_set_legacy_dinfo(blk, dinfo);
 
