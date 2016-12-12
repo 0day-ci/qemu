@@ -467,7 +467,7 @@ struct TypeInfo
  * OBJECT:
  * @obj: A derivative of #Object
  *
- * Converts an object to a #Object.  Since all objects are #Objects,
+ * Converts an object to a #Object.  Since all objects are #Object,
  * this function will always succeed.
  */
 #define OBJECT(obj) \
@@ -477,8 +477,8 @@ struct TypeInfo
  * OBJECT_CLASS:
  * @class: A derivative of #ObjectClass.
  *
- * Converts a class to an #ObjectClass.  Since all objects are #Objects,
- * this function will always succeed.
+ * Converts a class to an #ObjectClass.  Since all classes are
+ * #ObjectClass, this function will always succeed.
  */
 #define OBJECT_CLASS(class) \
     ((ObjectClass *)(class))
