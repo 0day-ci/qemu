@@ -983,7 +983,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
         error_setg(errp, "PCI: slot %d function 0 already ocuppied by %s,"
                    " new func %s cannot be exposed to guest.",
                    PCI_SLOT(devfn),
-                   bus->devices[PCI_DEVFN(PCI_SLOT(devfn), 0)]->name,
+                   pci_get_function_0(pci_dev)->name,
                    name);
 
        return NULL;
