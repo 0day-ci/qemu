@@ -205,6 +205,12 @@ error:
     return;
 }
 
+static bool
+smb_irq_value(PMSMBus *s)
+{
+    return ((s->smb_stat & ~STS_HOST_BUSY) != 0) && (s->smb_ctl & CTL_INTREN);
+}
+
 static void smb_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
                               unsigned width)
 {
@@ -300,7 +306,9 @@ static void smb_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
     }
 
  out:
-    return;
+    if (s->set_irq) {
+        s->set_irq(s, smb_irq_value(s));
+    }
 }
 
 static uint64_t smb_ioport_readb(void *opaque, hwaddr addr, unsigned width)
@@ -351,6 +359,10 @@ static uint64_t smb_ioport_readb(void *opaque, hwaddr addr, unsigned width)
     }
     SMBUS_DPRINTF("SMB readb port=0x%04" HWADDR_PRIx " val=0x%02x\n",
                   addr, val);
+
+    if (s->set_irq) {
+        s->set_irq(s, smb_irq_value(s));
+    }
 
     return val;
 }
