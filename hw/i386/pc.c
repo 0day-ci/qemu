@@ -2160,46 +2160,46 @@ static void pc_machine_set_nvdimm(Object *obj, bool value, Error **errp)
     pcms->acpi_nvdimm_state.is_enabled = value;
 }
 
-static bool pc_machine_get_smbus(Object *obj, Error **errp)
+static bool pc_machine_get_smbus_enabled(Object *obj, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    return pcms->smbus;
+    return pcms->smbus_enabled;
 }
 
-static void pc_machine_set_smbus(Object *obj, bool value, Error **errp)
+static void pc_machine_set_smbus_enabled(Object *obj, bool value, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    pcms->smbus = value;
+    pcms->smbus_enabled = value;
 }
 
-static bool pc_machine_get_sata(Object *obj, Error **errp)
+static bool pc_machine_get_sata_enabled(Object *obj, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    return pcms->sata;
+    return pcms->sata_enabled;
 }
 
-static void pc_machine_set_sata(Object *obj, bool value, Error **errp)
+static void pc_machine_set_sata_enabled(Object *obj, bool value, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    pcms->sata = value;
+    pcms->sata_enabled = value;
 }
 
-static bool pc_machine_get_pit(Object *obj, Error **errp)
+static bool pc_machine_get_pit_enabled(Object *obj, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    return pcms->pit;
+    return pcms->pit_enabled;
 }
 
-static void pc_machine_set_pit(Object *obj, bool value, Error **errp)
+static void pc_machine_set_pit_enabled(Object *obj, bool value, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    pcms->pit = value;
+    pcms->pit_enabled = value;
 }
 
 static void pc_machine_initfn(Object *obj)
@@ -2213,9 +2213,9 @@ static void pc_machine_initfn(Object *obj)
     pcms->acpi_nvdimm_state.is_enabled = false;
     /* acpi build is enabled by default if machine supports it */
     pcms->acpi_build_enabled = PC_MACHINE_GET_CLASS(pcms)->has_acpi_build;
-    pcms->smbus = true;
-    pcms->sata = true;
-    pcms->pit = true;
+    pcms->smbus_enabled = true;
+    pcms->sata_enabled = true;
+    pcms->pit_enabled = true;
 }
 
 static void pc_machine_reset(void)
@@ -2378,13 +2378,14 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
         pc_machine_get_nvdimm, pc_machine_set_nvdimm, &error_abort);
 
     object_class_property_add_bool(oc, PC_MACHINE_SMBUS,
-        pc_machine_get_smbus, pc_machine_set_smbus, &error_abort);
+        pc_machine_get_smbus_enabled, pc_machine_set_smbus_enabled,
+        &error_abort);
 
     object_class_property_add_bool(oc, PC_MACHINE_SATA,
-        pc_machine_get_sata, pc_machine_set_sata, &error_abort);
+        pc_machine_get_sata_enabled, pc_machine_set_sata_enabled, &error_abort);
 
     object_class_property_add_bool(oc, PC_MACHINE_PIT,
-        pc_machine_get_pit, pc_machine_set_pit, &error_abort);
+        pc_machine_get_pit_enabled, pc_machine_set_pit_enabled, &error_abort);
 }
 
 static const TypeInfo pc_machine_info = {
