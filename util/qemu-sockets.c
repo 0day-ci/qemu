@@ -584,6 +584,8 @@ InetSocketAddress *inet_parse(const char *str, Error **errp)
     char port[33];
     int to;
     int pos;
+    char *first_col_p = strchr(str, ':');
+    char *last_col_p = strrchr(str, ':');
 
     addr = g_new0(InetSocketAddress, 1);
 
@@ -595,11 +597,27 @@ InetSocketAddress *inet_parse(const char *str, Error **errp)
             error_setg(errp, "error parsing port in address '%s'", str);
             goto fail;
         }
-    } else if (str[0] == '[') {
-        /* IPv6 addr */
-        if (sscanf(str, "[%64[^]]]:%32[^,]%n", host, port, &pos) != 2) {
-            error_setg(errp, "error parsing IPv6 address '%s'", str);
-            goto fail;
+    } else if (first_col_p != last_col_p) {
+        if (str[0] != '[') {
+            /* IPv6 addr w/o brackets */
+            char *port_p;
+            char *comma_p;
+
+            pstrcpy(host, sizeof(host), str);
+            port_p = strrchr(host, ':');
+            *port_p++ = '\0';
+            pstrcpy(port, sizeof(port), port_p);
+            comma_p = strchr(port, ',');
+            if (comma_p != NULL) {
+                *comma_p = '\0';
+            }
+            pos = strlen(host) + strlen(port) + 1;
+        } else {
+            /* IPv6 addr with brackets */
+            if (2 != sscanf(str, "[%64[^]]]:%32[^,]%n", host, port, &pos)) {
+                error_setg(errp, "error parsing IPv6 address '%s'", str);
+                goto fail;
+            }
         }
         addr->ipv6 = addr->has_ipv6 = true;
     } else {
