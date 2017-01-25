@@ -374,6 +374,13 @@ static void extract_common_blockdev_options(QemuOpts *opts, int *bdrv_flags,
                return;
             }
         }
+
+        if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_NO_FLUSH, false)) {
+            *bdrv_flags |= BDRV_O_NO_FLUSH;
+        }
+        if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_DIRECT, false)) {
+            *bdrv_flags |= BDRV_O_NOCACHE;
+        }
     }
 
     /* disk I/O throttling */
@@ -569,11 +576,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         /* bdrv_open() defaults to the values in bdrv_flags (for compatibility
          * with other callers) rather than what we want as the real defaults.
          * Apply the defaults here instead. */
-        qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_DIRECT, "off");
-        qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, "off");
         qdict_set_default_str(bs_opts, BDRV_OPT_READ_ONLY,
                               read_only ? "on" : "off");
-        assert((bdrv_flags & BDRV_O_CACHE_MASK) == 0);
 
         if (runstate_check(RUN_STATE_INMIGRATE)) {
             bdrv_flags |= BDRV_O_INACTIVE;
@@ -3996,6 +4000,14 @@ QemuOptsList qemu_common_drive_opts = {
             .type = QEMU_OPT_STRING,
             .help = "write error action",
         },{
+            .name = BDRV_OPT_CACHE_DIRECT,
+            .type = QEMU_OPT_BOOL,
+            .help = "Bypass software writeback cache on the host",
+        }, {
+            .name = BDRV_OPT_CACHE_NO_FLUSH,
+            .type = QEMU_OPT_BOOL,
+            .help = "Ignore flush requests",
+        }, {
             .name = BDRV_OPT_READ_ONLY,
             .type = QEMU_OPT_BOOL,
             .help = "open drive file as read-only",
