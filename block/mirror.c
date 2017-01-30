@@ -587,6 +587,9 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
         }
 
         mirror_wait_for_all_io(s);
+
+        /* offset has moved to EOF, restore it */
+        s->common.offset = 0;
     }
 
     /* First part, loop on the sectors and initialize the dirty bitmap.  */
