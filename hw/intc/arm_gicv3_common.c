@@ -68,6 +68,7 @@ static const VMStateDescription vmstate_gicv3_cpu = {
         VMSTATE_UINT32(gicr_igrpmodr0, GICv3CPUState),
         VMSTATE_UINT32(gicr_nsacr, GICv3CPUState),
         VMSTATE_UINT8_ARRAY(gicr_ipriorityr, GICv3CPUState, GIC_INTERNAL),
+        VMSTATE_UINT64(icc_sre_el1, GICv3CPUState),
         VMSTATE_UINT64_ARRAY(icc_ctlr_el1, GICv3CPUState, 2),
         VMSTATE_UINT64(icc_pmr_el1, GICv3CPUState),
         VMSTATE_UINT64_ARRAY(icc_bpr, GICv3CPUState, 3),
