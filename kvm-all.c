@@ -2000,6 +2000,7 @@ int kvm_cpu_exec(CPUState *cpu)
                 ret = EXCP_INTERRUPT;
                 break;
             case KVM_SYSTEM_EVENT_CRASH:
+                kvm_arch_log_crash(cpu);
                 qemu_mutex_lock_iothread();
                 qemu_system_guest_panicked();
                 qemu_mutex_unlock_iothread();

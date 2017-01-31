@@ -42,6 +42,7 @@ static void handle_event(int event)
     }
 
     if (event & PVPANIC_PANICKED) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Guest panicked\n");
         qemu_system_guest_panicked();
         return;
     }
