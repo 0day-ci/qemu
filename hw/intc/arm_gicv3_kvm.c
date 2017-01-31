@@ -604,6 +604,39 @@ static void kvm_arm_gicv3_get(GICv3State *s)
     }
 }
 
+static void arm_gicv3_icc_reset(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    ARMCPU *cpu;
+    GICv3State *s;
+    GICv3CPUState *c;
+
+    c = (GICv3CPUState *)env->gicv3state;
+    if (!c || !c->cpu || !c->gic) {
+        return;
+    }
+
+    s = c->gic;
+    if (!s) {
+        return;
+    }
+
+    cpu = ARM_CPU(c->cpu);
+    /* Initialize to actual HW supported configuration */
+    kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_CPU_SYSREGS,
+                      KVM_VGIC_ATTR(ICC_CTLR_EL1, cpu->mp_affinity),
+                      &c->icc_ctlr_el1[GICV3_NS], false);
+
+    c->icc_ctlr_el1[GICV3_S] = c->icc_ctlr_el1[GICV3_NS];
+    c->icc_pmr_el1 = 0;
+    c->icc_bpr[GICV3_G0] = GIC_MIN_BPR;
+    c->icc_bpr[GICV3_G1] = GIC_MIN_BPR;
+    c->icc_bpr[GICV3_G1NS] = GIC_MIN_BPR;
+
+    c->icc_sre_el1 = 0x7;
+    memset(c->icc_apr, 0, sizeof(c->icc_apr));
+    memset(c->icc_igrpen, 0, sizeof(c->icc_igrpen));
+}
+
 static void kvm_arm_gicv3_reset(DeviceState *dev)
 {
     GICv3State *s = ARM_GICV3_COMMON(dev);
@@ -620,6 +653,41 @@ static void kvm_arm_gicv3_reset(DeviceState *dev)
 
     kvm_arm_gicv3_put(s);
 }
+
+static uint64_t icc_cp_reg_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    return 0;
+}
+
+static void icc_cp_reg_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t value)
+{
+    return;
+}
+
+/*
+ * CPU interface registers of GIC needs to be reset on CPU reset.
+ * For the calling arm_gicv3_icc_reset() on CPU reset, we register
+ * below ARMCPRegInfo. As we reset the whole cpu interface under single
+ * register reset, we define only one register of CPU interface instead
+ * of defining all the registers.
+ */
+static const ARMCPRegInfo gicv3_cpuif_reginfo[] = {
+    { .name = "ICC_CTLR_EL1", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 12, .opc2 = 4,
+      .type = ARM_CP_NO_RAW,
+      .access = PL1_RW,
+      .readfn = icc_cp_reg_read,
+      .writefn = icc_cp_reg_write,
+      /*
+       * We hang the whole cpu interface reset routine off here
+       * rather than parcelling it out into one little function
+       * per register
+       */
+      .resetfn = arm_gicv3_icc_reset,
+    },
+    REGINFO_SENTINEL
+};
 
 static void kvm_arm_gicv3_realize(DeviceState *dev, Error **errp)
 {
@@ -650,6 +718,7 @@ static void kvm_arm_gicv3_realize(DeviceState *dev, Error **errp)
 
         /* Store GICv3CPUState in CPUARMState gicv3state pointer */
         env->gicv3state = (void *)&s->cpu[i];
+        define_arm_cp_regs(cpu, gicv3_cpuif_reginfo);
     }
 
     /* Try to create the device via the device control API */
