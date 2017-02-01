@@ -1202,7 +1202,7 @@ static int io_channel_send_full(QIOChannel *ioc,
             errno = EAGAIN;
             return -1;
         } else if (ret < 0) {
-            errno = EINVAL;
+            errno = errno == EPIPE ? EPIPE : EINVAL;
             return -1;
         }
 
@@ -2854,6 +2854,9 @@ static gboolean tcp_chr_accept(QIOChannel *chan,
                                GIOCondition cond,
                                void *opaque);
 
+static int tcp_chr_read_poll(void *opaque);
+static void tcp_chr_disconnect(Chardev *chr);
+
 /* Called with chr_write_lock held.  */
 static int tcp_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
@@ -2869,6 +2872,13 @@ static int tcp_chr_write(Chardev *chr, const uint8_t *buf, int len)
             g_free(s->write_msgfds);
             s->write_msgfds = 0;
             s->write_msgfds_num = 0;
+        }
+
+        if (ret < 0 && errno == EPIPE) {
+            if (tcp_chr_read_poll(chr) <= 0) {
+                tcp_chr_disconnect(chr);
+                return len;
+            } /* else let the read handler finish it properly */
         }
 
         return ret;
