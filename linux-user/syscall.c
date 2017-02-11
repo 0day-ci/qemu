@@ -57,6 +57,8 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <netinet/tcp.h>
 #include <linux/wireless.h>
 #include <linux/icmp.h>
+#include <linux/icmpv6.h>
+#include <linux/errqueue.h>
 #include "qemu-common.h"
 #ifdef CONFIG_TIMERFD
 #include <sys/timerfd.h>
@@ -1839,6 +1841,78 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
             }
             break;
 
+        case SOL_IP:
+            switch (cmsg->cmsg_type) {
+            case IP_TTL:
+            {
+                goto copy_word;
+            }
+            case IP_RECVERR:
+            {
+                struct errhdr_t {
+                   struct sock_extended_err ee;
+                   struct sockaddr_in offender;
+                };
+                struct errhdr_t *errh = (struct errhdr_t *)data;
+                struct errhdr_t *target_errh =
+                    (struct errhdr_t *)target_data;
+
+                __put_user(errh->ee.ee_errno, &target_errh->ee.ee_errno);
+                __put_user(errh->ee.ee_origin, &target_errh->ee.ee_origin);
+                __put_user(errh->ee.ee_type,  &target_errh->ee.ee_type);
+                __put_user(errh->ee.ee_code, &target_errh->ee.ee_code);
+                __put_user(errh->ee.ee_pad, &target_errh->ee.ee_pad);
+                __put_user(errh->ee.ee_info, &target_errh->ee.ee_info);
+                __put_user(errh->ee.ee_data, &target_errh->ee.ee_data);
+                host_to_target_sockaddr((unsigned long) &target_errh->offender,
+                    (void *) &errh->offender, sizeof(errh->offender));
+		break;
+            }
+            default:
+                goto unimplemented;
+            }
+            break;
+
+        case SOL_IPV6:
+            switch (cmsg->cmsg_type) {
+            case IPV6_HOPLIMIT:
+            copy_word:
+            {
+                uint32_t *v = (uint32_t *)data;
+                uint32_t *t_int = (uint32_t *)target_data;
+                if (tgt_len != CMSG_LEN(0))
+                    goto unimplemented;
+
+                __put_user(*v, t_int);
+		break;
+            }
+            case IPV6_RECVERR:
+            {
+                struct errhdr6_t {
+                   struct sock_extended_err ee;
+                   struct sockaddr_in6 offender;
+                };
+                struct errhdr6_t *errh = (struct errhdr6_t *)data;
+                struct errhdr6_t *target_errh =
+                    (struct errhdr6_t *)target_data;
+
+                __put_user(errh->ee.ee_errno, &target_errh->ee.ee_errno);
+                __put_user(errh->ee.ee_origin, &target_errh->ee.ee_origin);
+                __put_user(errh->ee.ee_type,  &target_errh->ee.ee_type);
+                __put_user(errh->ee.ee_code, &target_errh->ee.ee_code);
+                __put_user(errh->ee.ee_pad, &target_errh->ee.ee_pad);
+                __put_user(errh->ee.ee_info, &target_errh->ee.ee_info);
+                __put_user(errh->ee.ee_data, &target_errh->ee.ee_data);
+                target_errh->offender = errh->offender;
+                __put_user(errh->offender.sin6_family, &target_errh->offender.sin6_family);
+                __put_user(errh->offender.sin6_scope_id, &target_errh->offender.sin6_scope_id);
+		break;
+            }
+            default:
+                goto unimplemented;
+            }
+            break;
+
         default:
         unimplemented:
             gemu_log("Unsupported ancillary data: %d/%d\n",
@@ -2766,6 +2840,7 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
         case IP_PKTINFO:
         case IP_MTU_DISCOVER:
         case IP_RECVERR:
+        case IP_RECVTTL:
         case IP_RECVTOS:
 #ifdef IP_FREEBIND
         case IP_FREEBIND:
@@ -2815,6 +2890,10 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
         case IPV6_MTU:
         case IPV6_V6ONLY:
         case IPV6_RECVPKTINFO:
+        case IPV6_UNICAST_HOPS:
+        case IPV6_RECVERR:
+        case IPV6_RECVHOPLIMIT:
+        case IPV6_2292HOPLIMIT:
             val = 0;
             if (optlen < sizeof(uint32_t)) {
                 return -TARGET_EINVAL;
@@ -2829,9 +2908,21 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
             goto unimplemented;
         }
         break;
+    case SOL_ICMPV6:
+        switch(optname) {
+        case ICMPV6_FILTER:
+        case IPV6_CHECKSUM:
+            goto icmp_filter;
+            break;
+        default:
+            goto unimplemented;
+        }
+        break;
     case SOL_RAW:
         switch (optname) {
         case ICMP_FILTER:
+        case IPV6_CHECKSUM:
+            icmp_filter:
             /* struct icmp_filter takes an u32 value */
             if (optlen < sizeof(uint32_t)) {
                 return -TARGET_EINVAL;
