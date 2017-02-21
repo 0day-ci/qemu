@@ -2855,6 +2855,7 @@ void qmp_block_resize(bool has_device, const char *device,
                       int64_t size, Error **errp)
 {
     Error *local_err = NULL;
+    BlockBackend *blk = NULL;
     BlockDriverState *bs;
     AioContext *aio_context;
     int ret;
@@ -2885,10 +2886,13 @@ void qmp_block_resize(bool has_device, const char *device,
         goto out;
     }
 
+    blk = blk_new();
+    blk_insert_bs(blk, bs);
+
     /* complete all in-flight operations before resizing the device */
     bdrv_drain_all();
 
-    ret = bdrv_truncate(bs, size);
+    ret = blk_truncate(blk, size);
     switch (ret) {
     case 0:
         break;
@@ -2910,6 +2914,7 @@ void qmp_block_resize(bool has_device, const char *device,
     }
 
 out:
+    blk_unref(blk);
     aio_context_release(aio_context);
 }
 
