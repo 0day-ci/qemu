@@ -1196,6 +1196,7 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
 void commit_active_start(const char *job_id, BlockDriverState *bs,
                          BlockDriverState *base, int creation_flags,
                          int64_t speed, BlockdevOnError on_error,
+                         const char *filter_node_name,
                          BlockCompletionFunc *cb, void *opaque, Error **errp,
                          bool auto_complete)
 {
@@ -1212,7 +1213,7 @@ void commit_active_start(const char *job_id, BlockDriverState *bs,
                      MIRROR_LEAVE_BACKING_CHAIN,
                      on_error, on_error, true, cb, opaque, &local_err,
                      &commit_active_job_driver, false, base, auto_complete,
-                     NULL);
+                     filter_node_name);
     if (local_err) {
         error_propagate(errp, local_err);
         goto error_restore_flags;
