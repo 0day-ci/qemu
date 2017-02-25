@@ -180,7 +180,7 @@ static int packet_enqueue(CompareState *s, int mode)
  * return:    0  means packet same
  *            > 0 || < 0 means packet different
  */
-static int colo_packet_compare(Packet *ppkt, Packet *spkt)
+static int colo_packet_compare_common(Packet *ppkt, Packet *spkt)
 {
     trace_colo_compare_ip_info(ppkt->size, inet_ntoa(ppkt->ip->ip_src),
                                inet_ntoa(ppkt->ip->ip_dst), spkt->size,
@@ -190,6 +190,7 @@ static int colo_packet_compare(Packet *ppkt, Packet *spkt)
     if (ppkt->size == spkt->size) {
         return memcmp(ppkt->data, spkt->data, spkt->size);
     } else {
+        trace_colo_compare_main("Net packet size are not the same");
         return -1;
     }
 }
@@ -202,13 +203,20 @@ static int colo_packet_compare(Packet *ppkt, Packet *spkt)
 static int colo_packet_compare_tcp(Packet *spkt, Packet *ppkt)
 {
     struct tcphdr *ptcp, *stcp;
-    int res;
+    int res, network_length;
 
     trace_colo_compare_main("compare tcp");
+
     if (ppkt->size != spkt->size) {
         if (trace_event_get_state(TRACE_COLO_COMPARE_MISCOMPARE)) {
             trace_colo_compare_main("pkt size not same");
         }
+        return -1;
+    }
+
+    network_length = ppkt->ip->ip_hl * 4;
+    if (ppkt->size < network_length + ETH_HLEN) {
+        trace_colo_compare_main("tcp packet size error");
         return -1;
     }
 
@@ -260,10 +268,16 @@ static int colo_packet_compare_tcp(Packet *spkt, Packet *ppkt)
  */
 static int colo_packet_compare_udp(Packet *spkt, Packet *ppkt)
 {
-    int ret;
+    int ret, network_length;
 
     trace_colo_compare_main("compare udp");
-    ret = colo_packet_compare(ppkt, spkt);
+    network_length = ppkt->ip->ip_hl * 4;
+    if (ppkt->size < network_length + ETH_HLEN) {
+        trace_colo_compare_main("udp packet size error");
+        return -1;
+    }
+
+    ret = colo_packet_compare_common(ppkt, spkt);
 
     if (ret) {
         trace_colo_compare_udp_miscompare("primary pkt size", ppkt->size);
@@ -285,12 +299,12 @@ static int colo_packet_compare_icmp(Packet *spkt, Packet *ppkt)
 
     trace_colo_compare_main("compare icmp");
     network_length = ppkt->ip->ip_hl * 4;
-    if (ppkt->size != spkt->size ||
-        ppkt->size < network_length + ETH_HLEN) {
+    if (ppkt->size < network_length + ETH_HLEN) {
+        trace_colo_compare_main("icmp packet size error");
         return -1;
     }
 
-    if (colo_packet_compare(ppkt, spkt)) {
+    if (colo_packet_compare_common(ppkt, spkt)) {
         trace_colo_compare_icmp_miscompare("primary pkt size",
                                            ppkt->size);
         qemu_hexdump((char *)ppkt->data, stderr, "colo-compare",
@@ -316,7 +330,7 @@ static int colo_packet_compare_other(Packet *spkt, Packet *ppkt)
                                inet_ntoa(ppkt->ip->ip_dst), spkt->size,
                                inet_ntoa(spkt->ip->ip_src),
                                inet_ntoa(spkt->ip->ip_dst));
-    return colo_packet_compare(ppkt, spkt);
+    return colo_packet_compare_common(ppkt, spkt);
 }
 
 static int colo_old_packet_check_one(Packet *pkt, int64_t *check_time)
