@@ -80,12 +80,12 @@ static void pl190_update_vectors(PL190State *s)
     mask = 0;
     for (i = 0; i < 16; i++)
       {
-        s->prio_mask[i] = mask;
         if (s->vect_control[i] & 0x20)
           {
             n = s->vect_control[i] & 0x1f;
             mask |= 1 << n;
           }
+        s->prio_mask[i] = mask;
       }
     s->prio_mask[16] = mask;
     pl190_update(s);
