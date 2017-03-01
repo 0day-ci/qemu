@@ -1581,7 +1581,9 @@ void virtio_notify_irqfd(VirtIODevice *vdev, VirtQueue *vq)
      * to an atomic operation.
      */
     virtio_set_isr(vq->vdev, 0x1);
-    event_notifier_set(&vq->guest_notifier);
+    if (event_notifier_set(&vq->guest_notifier)) {
+        virtio_notify_vector(vdev, vq->vector);
+    }
 }
 
 static void virtio_irq(VirtQueue *vq)
