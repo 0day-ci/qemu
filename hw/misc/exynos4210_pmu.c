@@ -400,7 +400,7 @@ typedef struct Exynos4210PmuState {
 static uint64_t exynos4210_pmu_read(void *opaque, hwaddr offset,
                                     unsigned size)
 {
-    Exynos4210PmuState *s = (Exynos4210PmuState *)opaque;
+    const Exynos4210PmuState *s = (Exynos4210PmuState *)opaque;
     unsigned i;
     const Exynos4210PmuReg *reg_p = exynos4210_pmu_regs;
 

@@ -190,7 +190,7 @@ combiner_grp_to_gic_id[64-EXYNOS4210_MAX_EXT_COMBINER_OUT_IRQ][8] = {
 
 static void exynos4210_irq_handler(void *opaque, int irq, int level)
 {
-    Exynos4210Irq *s = (Exynos4210Irq *)opaque;
+    const Exynos4210Irq *s = (Exynos4210Irq *)opaque;
 
     /* Bypass */
     qemu_set_irq(s->board_irqs[irq], level);
@@ -277,7 +277,7 @@ typedef struct {
 
 static void exynos4210_gic_set_irq(void *opaque, int irq, int level)
 {
-    Exynos4210GicState *s = (Exynos4210GicState *)opaque;
+    const Exynos4210GicState *s = (Exynos4210GicState *)opaque;
     qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
 }
 
@@ -401,7 +401,7 @@ static const VMStateDescription vmstate_exynos4210_irq_gate = {
 /* Process a change in IRQ input. */
 static void exynos4210_irq_gate_handler(void *opaque, int irq, int level)
 {
-    Exynos4210IRQGateState *s = (Exynos4210IRQGateState *)opaque;
+    const Exynos4210IRQGateState *s = (Exynos4210IRQGateState *)opaque;
     uint32_t i;
 
     assert(irq < s->n_in);
@@ -420,7 +420,7 @@ static void exynos4210_irq_gate_handler(void *opaque, int irq, int level)
 
 static void exynos4210_irq_gate_reset(DeviceState *d)
 {
-    Exynos4210IRQGateState *s = EXYNOS4210_IRQ_GATE(d);
+    const Exynos4210IRQGateState *s = EXYNOS4210_IRQ_GATE(d);
 
     memset(s->level, 0, s->n_in * sizeof(*s->level));
 }

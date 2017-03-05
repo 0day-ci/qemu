@@ -180,7 +180,7 @@ void exynos4210_combiner_get_gpioin(Exynos4210Irq *irqs, DeviceState *dev,
 static uint64_t
 exynos4210_combiner_read(void *opaque, hwaddr offset, unsigned size)
 {
-    struct Exynos4210CombinerState *s =
+    const struct Exynos4210CombinerState *s =
             (struct Exynos4210CombinerState *)opaque;
     uint32_t req_quad_base_n;    /* Base of registers quad. Multiply it by 4 and
                                    get a start of corresponding group quad */
