@@ -167,7 +167,7 @@ void synchronize_rcu(void)
 }
 
 
-#define RCU_CALL_MIN_SIZE        30
+#define RCU_CALL_MIN_SIZE        5
 
 /* Multi-producer, single-consumer queue based on urcu/static/wfqueue.h
  * from liburcu.  Note that head is only used by the consumer.
@@ -241,7 +241,7 @@ static void *call_rcu_thread(void *opaque)
          * added before synchronize_rcu() starts.
          */
         while (n == 0 || (n < RCU_CALL_MIN_SIZE && ++tries <= 5)) {
-            g_usleep(10000);
+            g_usleep(100);
             if (n == 0) {
                 qemu_event_reset(&rcu_call_ready_event);
                 n = atomic_read(&rcu_call_count);
@@ -254,24 +254,20 @@ static void *call_rcu_thread(void *opaque)
 
         atomic_sub(&rcu_call_count, n);
         synchronize_rcu();
-        qemu_mutex_lock_iothread();
         while (n > 0) {
             node = try_dequeue();
             while (!node) {
-                qemu_mutex_unlock_iothread();
                 qemu_event_reset(&rcu_call_ready_event);
                 node = try_dequeue();
                 if (!node) {
                     qemu_event_wait(&rcu_call_ready_event);
                     node = try_dequeue();
                 }
-                qemu_mutex_lock_iothread();
             }
 
             n--;
             node->func(node);
         }
-        qemu_mutex_unlock_iothread();
     }
     abort();
 }
