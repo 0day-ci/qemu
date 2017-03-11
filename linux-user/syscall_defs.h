@@ -1308,7 +1308,11 @@ struct target_winsize {
 /* Common */
 #define TARGET_MAP_SHARED	0x01		/* Share changes */
 #define TARGET_MAP_PRIVATE	0x02		/* Changes are private */
+#if defined(TARGET_HPPA)
+#define TARGET_MAP_TYPE		0x03		/* Mask for type of mapping */
+#else
 #define TARGET_MAP_TYPE		0x0f		/* Mask for type of mapping */
+#endif
 
 /* Target specific */
 #if defined(TARGET_MIPS)
@@ -1351,6 +1355,8 @@ struct target_winsize {
 #define TARGET_MAP_NORESERVE	0x04000		/* no check for reservations */
 #define TARGET_MAP_POPULATE	0x10000		/* pop (prefault) pagetables */
 #define TARGET_MAP_NONBLOCK	0x20000		/* do not block on IO */
+#define TARGET_MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
+#define TARGET_MAP_HUGETLB	0x80000		/* create a huge page mapping */
 #else
 #define TARGET_MAP_FIXED	0x10		/* Interpret addr exactly */
 #define TARGET_MAP_ANONYMOUS	0x20		/* don't use a file */
@@ -2329,6 +2335,9 @@ struct target_statfs64 {
 #define TARGET_F_SETOWN        24       /*  for sockets. */
 #define TARGET_F_GETOWN        23       /*  for sockets. */
 #elif defined(TARGET_HPPA)
+#define TARGET_F_RDLCK         1
+#define TARGET_F_WRLCK         2
+#define TARGET_F_UNLCK         3
 #define TARGET_F_GETLK         5
 #define TARGET_F_SETLK         6
 #define TARGET_F_SETLKW        7
