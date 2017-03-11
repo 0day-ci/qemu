@@ -1713,6 +1713,18 @@ static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
             __get_user(cred->pid, &target_cred->pid);
             __get_user(cred->uid, &target_cred->uid);
             __get_user(cred->gid, &target_cred->gid);
+        } else if (cmsg->cmsg_level == SOL_IP
+               &&  cmsg->cmsg_type == IP_TOS) {
+            char *s = (char *)data;
+            char *t = (char *)target_data;
+
+            __get_user(*s, t);
+        } else if (cmsg->cmsg_level == SOL_IPV6
+               &&  cmsg->cmsg_type == IPV6_TCLASS) {
+            int32_t *s = (int32_t *)data;
+            int32_t *t = (int32_t *)target_data;
+
+            __get_user(*s, t);
         } else {
             gemu_log("Unsupported ancillary data: %d/%d\n",
                                         cmsg->cmsg_level, cmsg->cmsg_type);
@@ -1848,6 +1860,7 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
 
         case SOL_IP:
             switch (cmsg->cmsg_type) {
+            case IP_TOS:
             case IP_TTL:
             {
                 uint32_t *v = (uint32_t *)data;
@@ -2902,6 +2915,8 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
         case IPV6_RECVHOPLIMIT:
         case IPV6_2292HOPLIMIT:
         case IPV6_CHECKSUM:
+        case IPV6_RECVTCLASS:
+        case IPV6_TCLASS:
             val = 0;
             if (optlen < sizeof(uint32_t)) {
                 return -TARGET_EINVAL;
