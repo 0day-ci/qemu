@@ -1731,9 +1731,10 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
                                       BlockDriverState *new_bs)
 {
     BlockDriverState *old_bs = child->bs;
+    int drain = !!(old_bs && old_bs->quiesce_counter) - !!(new_bs && new_bs->quiesce_counter);
 
     if (old_bs) {
-        if (old_bs->quiesce_counter && child->role->drained_end) {
+        if (drain < 0 && child->role->drained_end) {
             child->role->drained_end(child);
         }
         if (child->role->detach) {
@@ -1746,7 +1747,7 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
 
     if (new_bs) {
         QLIST_INSERT_HEAD(&new_bs->parents, child, next_parent);
-        if (new_bs->quiesce_counter && child->role->drained_begin) {
+        if (drain > 0 && child->role->drained_begin) {
             child->role->drained_begin(child);
         }
 
@@ -3011,6 +3012,10 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
 {
     Error *local_err = NULL;
 
+    assert(bs_new->quiesce_counter == 0);
+    assert(bs_top->quiesce_counter == 1);
+    bdrv_drained_begin(bs_new);
+
     bdrv_set_backing_hd(bs_new, bs_top, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -3021,8 +3026,12 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
     if (local_err) {
         error_propagate(errp, local_err);
         bdrv_set_backing_hd(bs_new, NULL, &error_abort);
+        bdrv_drained_end(bs_new);
         goto out;
     }
+
+    assert(bs_new->quiesce_counter == 1);
+    assert(bs_top->quiesce_counter == 1);
 
     /* bs_new is now referenced by its new parents, we don't need the
      * additional reference any more. */

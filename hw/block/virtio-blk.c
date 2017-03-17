@@ -902,7 +902,23 @@ static void virtio_blk_resize(void *opaque)
     virtio_notify_config(vdev);
 }
 
+static void virtio_blk_drained_begin(void *opaque)
+{
+    VirtIOBlock *s = VIRTIO_BLK(opaque);
+
+    aio_disable_external(blk_get_aio_context(s->conf.conf.blk));
+}
+
+static void virtio_blk_drained_end(void *opaque)
+{
+    VirtIOBlock *s = VIRTIO_BLK(opaque);
+
+    aio_enable_external(blk_get_aio_context(s->conf.conf.blk));
+}
+
 static const BlockDevOps virtio_block_ops = {
+    .drained_begin = virtio_blk_drained_begin,
+    .drained_end = virtio_blk_drained_end,
     .resize_cb = virtio_blk_resize,
 };
 

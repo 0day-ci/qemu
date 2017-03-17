@@ -97,6 +97,20 @@ void scsi_bus_new(SCSIBus *bus, size_t bus_size, DeviceState *host,
     qbus_set_bus_hotplug_handler(BUS(bus), &error_abort);
 }
 
+void scsi_bus_drained_begin(SCSIBus *bus)
+{
+    if (bus->info->drained_begin) {
+        bus->info->drained_begin(bus);
+    }
+}
+
+void scsi_bus_drained_end(SCSIBus *bus)
+{
+    if (bus->info->drained_end) {
+        bus->info->drained_end(bus);
+    }
+}
+
 static void scsi_dma_restart_bh(void *opaque)
 {
     SCSIDevice *s = opaque;

@@ -2281,6 +2281,24 @@ static bool scsi_cd_is_medium_locked(void *opaque)
     return ((SCSIDiskState *)opaque)->tray_locked;
 }
 
+static void scsi_disk_drained_begin(void *opaque)
+{
+    SCSIDiskState *s = opaque;
+    SCSIDevice *sdev = SCSI_DEVICE(s);
+    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, sdev->qdev.parent_bus);
+
+    scsi_bus_drained_begin(bus);
+}
+
+static void scsi_disk_drained_end(void *opaque)
+{
+    SCSIDiskState *s = opaque;
+    SCSIDevice *sdev = SCSI_DEVICE(s);
+    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, sdev->qdev.parent_bus);
+
+    scsi_bus_drained_end(bus);
+}
+
 static const BlockDevOps scsi_disk_removable_block_ops = {
     .change_media_cb = scsi_cd_change_media_cb,
     .eject_request_cb = scsi_cd_eject_request_cb,
@@ -2288,10 +2306,16 @@ static const BlockDevOps scsi_disk_removable_block_ops = {
     .is_medium_locked = scsi_cd_is_medium_locked,
 
     .resize_cb = scsi_disk_resize_cb,
+
+    .drained_begin = scsi_disk_drained_begin,
+    .drained_end = scsi_disk_drained_end,
 };
 
 static const BlockDevOps scsi_disk_block_ops = {
     .resize_cb = scsi_disk_resize_cb,
+
+    .drained_begin = scsi_disk_drained_begin,
+    .drained_end = scsi_disk_drained_end,
 };
 
 static void scsi_disk_unit_attention_reported(SCSIDevice *dev)

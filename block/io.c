@@ -224,7 +224,6 @@ void bdrv_drained_begin(BlockDriverState *bs)
     }
 
     if (!bs->quiesce_counter++) {
-        aio_disable_external(bdrv_get_aio_context(bs));
         bdrv_parent_drained_begin(bs);
     }
 
@@ -239,7 +238,6 @@ void bdrv_drained_end(BlockDriverState *bs)
     }
 
     bdrv_parent_drained_end(bs);
-    aio_enable_external(bdrv_get_aio_context(bs));
 }
 
 /*
@@ -300,7 +298,6 @@ void bdrv_drain_all_begin(void)
 
         aio_context_acquire(aio_context);
         bdrv_parent_drained_begin(bs);
-        aio_disable_external(aio_context);
         aio_context_release(aio_context);
 
         if (!g_slist_find(aio_ctxs, aio_context)) {
@@ -343,7 +340,6 @@ void bdrv_drain_all_end(void)
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);
-        aio_enable_external(aio_context);
         bdrv_parent_drained_end(bs);
         aio_context_release(aio_context);
     }
