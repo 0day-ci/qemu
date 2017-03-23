@@ -307,8 +307,6 @@ static void pc_q35_machine_options(MachineClass *m)
     machine_class_add_sysbus_whitelist(m, "amd-iommu");
     machine_class_add_sysbus_whitelist(m, "cfi.pflash01");
     machine_class_add_sysbus_whitelist(m, "esp");
-    machine_class_add_sysbus_whitelist(m, "fw_cfg_io");
-    machine_class_add_sysbus_whitelist(m, "fw_cfg_mem");
     machine_class_add_sysbus_whitelist(m, "generic-sdhci");
     machine_class_add_sysbus_whitelist(m, "hpet");
     machine_class_add_sysbus_whitelist(m, "intel-iommu");
