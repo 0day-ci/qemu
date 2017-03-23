@@ -12,7 +12,9 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "e500.h"
+#include "hw/net/fsl_etsec/etsec.h"
 #include "hw/boards.h"
+#include "hw/sysbus.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/kvm.h"
 #include "hw/pci/pci.h"
@@ -63,7 +65,7 @@ static void e500plat_machine_init(MachineClass *mc)
     mc->desc = "generic paravirt e500 platform";
     mc->init = e500plat_init;
     mc->max_cpus = 32;
-    mc->has_dynamic_sysbus = true;
+    machine_class_add_sysbus_whitelist(mc, TYPE_ETSEC_COMMON);
 }
 
 DEFINE_MACHINE("ppce500", e500plat_machine_init)

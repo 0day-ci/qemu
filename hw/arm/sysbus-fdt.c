@@ -29,6 +29,7 @@
 #include <linux/vfio.h>
 #endif
 #include "hw/arm/sysbus-fdt.h"
+#include "hw/boards.h"
 #include "qemu/error-report.h"
 #include "sysemu/device_tree.h"
 #include "hw/platform-bus.h"
@@ -423,6 +424,15 @@ static const NodeCreationPair add_fdt_node_functions[] = {
 #endif
     {"", NULL}, /* last element */
 };
+
+void arm_register_fdt_sysbus_whitelist(MachineClass *mc)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(add_fdt_node_functions); i++) {
+        machine_class_add_sysbus_whitelist(mc, add_fdt_node_functions[i].typename);
+    }
+}
 
 /* Generic Code */
 

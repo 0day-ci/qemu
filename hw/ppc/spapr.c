@@ -3070,7 +3070,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = "";
     mc->default_ram_size = 512 * M_BYTE;
     mc->kvm_type = spapr_kvm_type;
-    mc->has_dynamic_sysbus = true;
+    machine_class_add_sysbus_whitelist(mc, TYPE_SPAPR_PCI_HOST_BRIDGE);
     mc->pci_allow_0_address = true;
     mc->get_hotplug_handler = spapr_get_hotplug_handler;
     hc->pre_plug = spapr_machine_device_pre_plug;

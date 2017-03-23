@@ -42,6 +42,7 @@ bool machine_dump_guest_core(MachineState *machine);
 bool machine_mem_merge(MachineState *machine);
 void machine_register_compat_props(MachineState *machine);
 HotpluggableCPUList *machine_query_hotpluggable_cpus(MachineState *machine);
+void machine_class_add_sysbus_whitelist(MachineClass *mc, const char *type);
 
 /**
  * CPUArchId:
@@ -121,7 +122,6 @@ struct MachineClass {
         no_floppy:1,
         no_cdrom:1,
         no_sdcard:1,
-        has_dynamic_sysbus:1,
         pci_allow_0_address:1,
         legacy_fw_cfg_order:1;
     int is_default;
@@ -135,6 +135,7 @@ struct MachineClass {
     bool rom_file_has_mr;
     int minimum_page_bits;
     bool has_hotpluggable_cpus;
+    strList *dynamic_sysbus_whitelist;
 
     HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);

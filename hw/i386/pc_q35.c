@@ -297,7 +297,34 @@ static void pc_q35_machine_options(MachineClass *m)
     m->default_machine_opts = "firmware=bios-256k.bin";
     m->default_display = "std";
     m->no_floppy = 1;
-    m->has_dynamic_sysbus = true;
+    /* The following whitelist is based on the set of available
+     * sysbus devices when has_dynamic_sysbus was replaced with
+     * a whitelist. Not every single device in this list is really
+     * supposed to be supported, but they are kept here for compatibility.
+     * We can gradually remove unnecessary devices from the whitelist.
+     */
+    machine_class_add_sysbus_whitelist(m, "allwinner-ahci");
+    machine_class_add_sysbus_whitelist(m, "amd-iommu");
+    machine_class_add_sysbus_whitelist(m, "cfi.pflash01");
+    machine_class_add_sysbus_whitelist(m, "esp");
+    machine_class_add_sysbus_whitelist(m, "fw_cfg_io");
+    machine_class_add_sysbus_whitelist(m, "fw_cfg_mem");
+    machine_class_add_sysbus_whitelist(m, "generic-sdhci");
+    machine_class_add_sysbus_whitelist(m, "hpet");
+    machine_class_add_sysbus_whitelist(m, "intel-iommu");
+    machine_class_add_sysbus_whitelist(m, "ioapic");
+    machine_class_add_sysbus_whitelist(m, "isabus-bridge");
+    machine_class_add_sysbus_whitelist(m, "kvm-ioapic");
+    machine_class_add_sysbus_whitelist(m, "kvmclock");
+    machine_class_add_sysbus_whitelist(m, "kvmvapic");
+    machine_class_add_sysbus_whitelist(m, "SUNW,fdtwo");
+    machine_class_add_sysbus_whitelist(m, "sysbus-ahci");
+    machine_class_add_sysbus_whitelist(m, "sysbus-fdc");
+    machine_class_add_sysbus_whitelist(m, "sysbus-ohci");
+    machine_class_add_sysbus_whitelist(m, "unimplemented-device");
+    machine_class_add_sysbus_whitelist(m, "virtio-mmio");
+    machine_class_add_sysbus_whitelist(m, "xen-backend");
+    machine_class_add_sysbus_whitelist(m, "xen-sysdev");
     m->max_cpus = 288;
 }
 

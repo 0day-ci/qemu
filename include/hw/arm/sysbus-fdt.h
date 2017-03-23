@@ -57,4 +57,11 @@ typedef struct {
  */
 void arm_register_platform_bus_fdt_creator(ARMPlatformBusFDTParams *fdt_params);
 
+/**
+ * arm_register_fdt_sysbus_whitelist - register supported sysbus device types
+ *
+ * Add supported dynamic sysbus device types to machine class.
+ */
+void arm_register_fdt_sysbus_whitelist(MachineClass *mc);
+
 #endif
