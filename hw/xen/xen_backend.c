@@ -550,15 +550,6 @@ err:
     return -1;
 }
 
-static void xen_set_dynamic_sysbus(void)
-{
-    Object *machine = qdev_get_machine();
-    ObjectClass *oc = object_get_class(machine);
-    MachineClass *mc = MACHINE_CLASS(oc);
-
-    mc->has_dynamic_sysbus = true;
-}
-
 int xen_be_register(const char *type, struct XenDevOps *ops)
 {
     char path[50];
@@ -580,8 +571,6 @@ int xen_be_register(const char *type, struct XenDevOps *ops)
 
 void xen_be_register_common(void)
 {
-    xen_set_dynamic_sysbus();
-
     xen_be_register("console", &xen_console_ops);
     xen_be_register("vkbd", &xen_kbdmouse_ops);
     xen_be_register("qdisk", &xen_blkdev_ops);
