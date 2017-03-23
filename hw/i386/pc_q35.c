@@ -312,9 +312,7 @@ static void pc_q35_machine_options(MachineClass *m)
     machine_class_add_sysbus_whitelist(m, "generic-sdhci");
     machine_class_add_sysbus_whitelist(m, "hpet");
     machine_class_add_sysbus_whitelist(m, "intel-iommu");
-    machine_class_add_sysbus_whitelist(m, "ioapic");
     machine_class_add_sysbus_whitelist(m, "isabus-bridge");
-    machine_class_add_sysbus_whitelist(m, "kvm-ioapic");
     machine_class_add_sysbus_whitelist(m, "kvmclock");
     machine_class_add_sysbus_whitelist(m, "kvmvapic");
     machine_class_add_sysbus_whitelist(m, "SUNW,fdtwo");
