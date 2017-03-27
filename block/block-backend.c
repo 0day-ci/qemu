@@ -273,7 +273,11 @@ void blk_unref(BlockBackend *blk)
     if (blk) {
         assert(blk->refcnt > 0);
         if (!--blk->refcnt) {
+            AioContext *ctx = blk_get_aio_context(blk);
+
+            aio_context_acquire(ctx);
             blk_delete(blk);
+            aio_context_release(ctx);
         }
     }
 }
