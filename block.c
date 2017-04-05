@@ -3237,6 +3237,8 @@ int bdrv_truncate(BdrvChild *child, int64_t offset)
     if (bs->read_only)
         return -EACCES;
 
+    assert(!(bs->open_flags & BDRV_O_INACTIVE));
+
     ret = drv->bdrv_truncate(bs, offset);
     if (ret == 0) {
         ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
