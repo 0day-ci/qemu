@@ -241,15 +241,61 @@ static void test_hash_base64(void)
     }
 }
 
+static void test_hash_speed(const void *opaque)
+{
+    size_t chunk_size = (size_t)opaque;
+    uint8_t *in = NULL, *out = NULL;
+    size_t out_len = 0;
+    double total = 0.0;
+    struct iovec iov;
+    int ret;
+
+    in = g_new0(uint8_t, chunk_size);
+    memset(in, g_test_rand_int(), chunk_size);
+
+    iov.iov_base = (char *)in;
+    iov.iov_len = chunk_size;
+
+    g_test_timer_start();
+    do {
+        ret = qcrypto_hash_bytesv(QCRYPTO_HASH_ALG_SHA256,
+                                  &iov, 1, &out, &out_len,
+                                  NULL);
+        g_assert(ret == 0);
+
+        total += chunk_size;
+    } while (g_test_timer_elapsed() < 5.0);
+
+    total /= 1024 * 1024; /* to MB */
+    g_print("Testing sha256: ");
+    g_print("Encrypting in chunks of %ld bytes: ", chunk_size);
+    g_print("done. %.2f MB in %.2f secs: ", total, g_test_timer_last());
+    g_print("%.2f MB/sec\t", total / g_test_timer_last());
+
+    g_free(out);
+    g_free(in);
+}
+
 int main(int argc, char **argv)
 {
+    size_t i;
+
     g_assert(qcrypto_init(NULL) == 0);
 
     g_test_init(&argc, &argv, NULL);
-    g_test_add_func("/crypto/hash/iov", test_hash_iov);
-    g_test_add_func("/crypto/hash/alloc", test_hash_alloc);
-    g_test_add_func("/crypto/hash/prealloc", test_hash_prealloc);
-    g_test_add_func("/crypto/hash/digest", test_hash_digest);
-    g_test_add_func("/crypto/hash/base64", test_hash_base64);
+
+    if ((argc > 1) && !strcmp(argv[1], "speed")) {
+        for (i = 512; i <= (64 * 1204); i *= 2) {
+            g_test_add_data_func("/crypto/hash/speed", (void *)i,
+                                 test_hash_speed);
+        }
+    } else {
+        g_test_add_func("/crypto/hash/iov", test_hash_iov);
+        g_test_add_func("/crypto/hash/alloc", test_hash_alloc);
+        g_test_add_func("/crypto/hash/prealloc", test_hash_prealloc);
+        g_test_add_func("/crypto/hash/digest", test_hash_digest);
+        g_test_add_func("/crypto/hash/base64", test_hash_base64);
+    }
+
     return g_test_run();
 }
