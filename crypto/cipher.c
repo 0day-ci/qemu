@@ -155,3 +155,62 @@ qcrypto_cipher_munge_des_rfb_key(const uint8_t *key,
 #else
 #include "crypto/cipher-builtin.c"
 #endif
+
+QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
+                                  QCryptoCipherMode mode,
+                                  const uint8_t *key, size_t nkey,
+                                  Error **errp)
+{
+    QCryptoCipher *cipher;
+    void *ctx;
+
+    ctx = qcrypto_cipher_ctx_new(alg, mode, key, nkey, errp);
+    if (ctx == NULL) {
+        return NULL;
+    }
+
+    cipher = g_new0(QCryptoCipher, 1);
+    cipher->alg = alg;
+    cipher->mode = mode;
+    cipher->opaque = ctx;
+    cipher->driver = &qcrypto_cipher_lib_driver;
+
+    return cipher;
+}
+
+
+int qcrypto_cipher_encrypt(QCryptoCipher *cipher,
+                           const void *in,
+                           void *out,
+                           size_t len,
+                           Error **errp)
+{
+    return cipher->driver->cipher_encrypt(cipher, in, out, len, errp);
+}
+
+
+int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
+                           const void *in,
+                           void *out,
+                           size_t len,
+                           Error **errp)
+{
+    return cipher->driver->cipher_decrypt(cipher, in, out, len, errp);
+}
+
+
+int qcrypto_cipher_setiv(QCryptoCipher *cipher,
+                         const uint8_t *iv, size_t niv,
+                         Error **errp)
+{
+    return cipher->driver->cipher_setiv(cipher, iv, niv, errp);
+}
+
+
+void qcrypto_cipher_free(QCryptoCipher *cipher)
+{
+    if (cipher) {
+        cipher->driver->cipher_free(cipher);
+        g_free(cipher);
+    }
+}

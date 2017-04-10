@@ -23,6 +23,7 @@
 
 #include "qapi-types.h"
 
+typedef struct QCryptoCipherDriver QCryptoCipherDriver;
 typedef struct QCryptoCipher QCryptoCipher;
 
 /* See also "QCryptoCipherAlgorithm" and "QCryptoCipherMode"
@@ -76,7 +77,28 @@ typedef struct QCryptoCipher QCryptoCipher;
  *
  */
 
+struct QCryptoCipherDriver {
+    int (*cipher_encrypt)(QCryptoCipher *cipher,
+                          const void *in,
+                          void *out,
+                          size_t len,
+                          Error **errp);
+
+    int (*cipher_decrypt)(QCryptoCipher *cipher,
+                          const void *in,
+                          void *out,
+                          size_t len,
+                          Error **errp);
+
+    int (*cipher_setiv)(QCryptoCipher *cipher,
+                        const uint8_t *iv, size_t niv,
+                        Error **errp);
+
+    void (*cipher_free)(QCryptoCipher *cipher);
+};
+
 struct QCryptoCipher {
+    QCryptoCipherDriver *driver;
     QCryptoCipherAlgorithm alg;
     QCryptoCipherMode mode;
     void *opaque;

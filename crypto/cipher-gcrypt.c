@@ -244,13 +244,9 @@ static QCryptoCipherGcrypt *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
 }
 
 
-void qcrypto_cipher_free(QCryptoCipher *cipher)
+static void gcrypt_cipher_ctx_free(QCryptoCipher *cipher)
 {
-    if (!cipher) {
-        return;
-    }
     gcrypt_cipher_free_ctx(cipher->opaque, cipher->mode);
-    g_free(cipher);
 }
 
 
@@ -274,11 +270,11 @@ static void qcrypto_gcrypt_xts_decrypt(const void *ctx,
     g_assert(err == 0);
 }
 
-int qcrypto_cipher_encrypt(QCryptoCipher *cipher,
-                           const void *in,
-                           void *out,
-                           size_t len,
-                           Error **errp)
+static int gcrypt_cipher_encrypt(QCryptoCipher *cipher,
+                                 const void *in,
+                                 void *out,
+                                 size_t len,
+                                 Error **errp)
 {
     QCryptoCipherGcrypt *ctx = cipher->opaque;
     gcry_error_t err;
@@ -309,11 +305,11 @@ int qcrypto_cipher_encrypt(QCryptoCipher *cipher,
 }
 
 
-int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
-                           const void *in,
-                           void *out,
-                           size_t len,
-                           Error **errp)
+static int gcrypt_cipher_decrypt(QCryptoCipher *cipher,
+                                 const void *in,
+                                 void *out,
+                                 size_t len,
+                                 Error **errp)
 {
     QCryptoCipherGcrypt *ctx = cipher->opaque;
     gcry_error_t err;
@@ -343,9 +339,9 @@ int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
     return 0;
 }
 
-int qcrypto_cipher_setiv(QCryptoCipher *cipher,
-                         const uint8_t *iv, size_t niv,
-                         Error **errp)
+static int gcrypt_cipher_setiv(QCryptoCipher *cipher,
+                               const uint8_t *iv, size_t niv,
+                               Error **errp)
 {
     QCryptoCipherGcrypt *ctx = cipher->opaque;
     gcry_error_t err;
@@ -381,23 +377,9 @@ int qcrypto_cipher_setiv(QCryptoCipher *cipher,
 }
 
 
-QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
-                                  QCryptoCipherMode mode,
-                                  const uint8_t *key, size_t nkey,
-                                  Error **errp)
-{
-    QCryptoCipher *cipher;
-    QCryptoCipherGcrypt *ctx;
-
-    ctx = qcrypto_cipher_ctx_new(alg, mode, key, nkey, errp);
-    if (ctx == NULL) {
-        return NULL;
-    }
-
-    cipher = g_new0(QCryptoCipher, 1);
-    cipher->alg = alg;
-    cipher->mode = mode;
-    cipher->opaque = ctx;
-
-    return cipher;
-}
+static struct QCryptoCipherDriver qcrypto_cipher_lib_driver = {
+    .cipher_encrypt = gcrypt_cipher_encrypt,
+    .cipher_decrypt = gcrypt_cipher_decrypt,
+    .cipher_setiv = gcrypt_cipher_setiv,
+    .cipher_free = gcrypt_cipher_ctx_free,
+};
