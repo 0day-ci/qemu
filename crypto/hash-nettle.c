@@ -103,12 +103,12 @@ gboolean qcrypto_hash_supports(QCryptoHashAlgorithm alg)
 }
 
 
-int qcrypto_hash_bytesv(QCryptoHashAlgorithm alg,
-                        const struct iovec *iov,
-                        size_t niov,
-                        uint8_t **result,
-                        size_t *resultlen,
-                        Error **errp)
+static int nettle_hash_bytesv(QCryptoHashAlgorithm alg,
+                              const struct iovec *iov,
+                              size_t niov,
+                              uint8_t **result,
+                              size_t *resultlen,
+                              Error **errp)
 {
     int i;
     union qcrypto_hash_ctx ctx;
@@ -152,3 +152,8 @@ int qcrypto_hash_bytesv(QCryptoHashAlgorithm alg,
 
     return 0;
 }
+
+
+QCryptoHashDriver qcrypto_hash_lib_driver = {
+    .hash_bytesv = nettle_hash_bytesv,
+};

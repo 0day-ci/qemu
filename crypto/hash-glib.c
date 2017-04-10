@@ -47,12 +47,12 @@ gboolean qcrypto_hash_supports(QCryptoHashAlgorithm alg)
 }
 
 
-int qcrypto_hash_bytesv(QCryptoHashAlgorithm alg,
-                        const struct iovec *iov,
-                        size_t niov,
-                        uint8_t **result,
-                        size_t *resultlen,
-                        Error **errp)
+static int glib_hash_bytesv(QCryptoHashAlgorithm alg,
+                            const struct iovec *iov,
+                            size_t niov,
+                            uint8_t **result,
+                            size_t *resultlen,
+                            Error **errp)
 {
     int i, ret;
     GChecksum *cs;
@@ -95,3 +95,8 @@ int qcrypto_hash_bytesv(QCryptoHashAlgorithm alg,
     g_checksum_free(cs);
     return -1;
 }
+
+
+QCryptoHashDriver qcrypto_hash_lib_driver = {
+    .hash_bytesv = glib_hash_bytesv,
+};
