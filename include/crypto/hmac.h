@@ -14,11 +14,31 @@
 
 #include "qapi-types.h"
 
+typedef struct QCryptoHmacDriver QCryptoHmacDriver;
 typedef struct QCryptoHmac QCryptoHmac;
+
 struct QCryptoHmac {
+    QCryptoHmacDriver *driver;
     QCryptoHashAlgorithm alg;
     void *opaque;
 };
+
+struct QCryptoHmacDriver {
+    int (*hmac_bytesv)(QCryptoHmac *hmac,
+                       const struct iovec *iov,
+                       size_t niov,
+                       uint8_t **result,
+                       size_t *resultlen,
+                       Error **errp);
+
+    void (*hmac_free)(QCryptoHmac *hmac);
+};
+
+extern void *qcrypto_hmac_ctx_new(QCryptoHashAlgorithm alg,
+                                  const uint8_t *key, size_t nkey,
+                                  Error **errp);
+extern QCryptoHmacDriver qcrypto_hmac_lib_driver;
+
 
 /**
  * qcrypto_hmac_supports:

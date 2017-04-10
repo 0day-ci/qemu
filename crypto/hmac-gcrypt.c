@@ -42,10 +42,9 @@ bool qcrypto_hmac_supports(QCryptoHashAlgorithm alg)
     return false;
 }
 
-static QCryptoHmacGcrypt *
-qcrypto_hmac_ctx_new(QCryptoHashAlgorithm alg,
-                     const uint8_t *key, size_t nkey,
-                     Error **errp)
+void *qcrypto_hmac_ctx_new(QCryptoHashAlgorithm alg,
+                           const uint8_t *key, size_t nkey,
+                           Error **errp)
 {
     QCryptoHmacGcrypt *ctx;
     gcry_error_t err;
@@ -81,27 +80,22 @@ error:
     return NULL;
 }
 
-void qcrypto_hmac_free(QCryptoHmac *hmac)
+static void gcrypt_hmac_ctx_free(QCryptoHmac *hmac)
 {
     QCryptoHmacGcrypt *ctx;
-
-    if (!hmac) {
-        return;
-    }
 
     ctx = hmac->opaque;
     gcry_mac_close(ctx->handle);
 
     g_free(ctx);
-    g_free(hmac);
 }
 
-int qcrypto_hmac_bytesv(QCryptoHmac *hmac,
-                        const struct iovec *iov,
-                        size_t niov,
-                        uint8_t **result,
-                        size_t *resultlen,
-                        Error **errp)
+static int gcrypt_hmac_bytesv(QCryptoHmac *hmac,
+                              const struct iovec *iov,
+                              size_t niov,
+                              uint8_t **result,
+                              size_t *resultlen,
+                              Error **errp)
 {
     QCryptoHmacGcrypt *ctx;
     gcry_error_t err;
@@ -147,21 +141,7 @@ int qcrypto_hmac_bytesv(QCryptoHmac *hmac,
     return 0;
 }
 
-QCryptoHmac *qcrypto_hmac_new(QCryptoHashAlgorithm alg,
-                              const uint8_t *key, size_t nkey,
-                              Error **errp)
-{
-    QCryptoHmac *hmac;
-    QCryptoHmacGcrypt *ctx;
-
-    ctx = qcrypto_hmac_ctx_new(alg, key, nkey, errp);
-    if (ctx == NULL) {
-        return NULL;
-    }
-
-    hmac = g_new0(QCryptoHmac, 1);
-    hmac->alg = alg;
-    hmac->opaque = ctx;
-
-    return hmac;
-}
+QCryptoHmacDriver qcrypto_hmac_lib_driver = {
+    .hmac_bytesv = gcrypt_hmac_bytesv,
+    .hmac_free = gcrypt_hmac_ctx_free,
+};
