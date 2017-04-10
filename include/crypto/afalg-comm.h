@@ -19,6 +19,11 @@
 #define SOL_ALG 279
 #endif
 
+#define ALG_TYPE_CIPHER "skcipher"
+
+#define ALG_OPTYPE_LEN 4
+#define ALG_MSGIV_LEN(len) (sizeof(struct af_alg_iv) + (len))
+
 typedef struct QCryptoAfalg QCryptoAfalg;
 struct QCryptoAfalg {
     int tfmfd;
@@ -57,5 +62,11 @@ QCryptoAfalg *afalg_comm_alloc(SocketAddress *saddr);
  * Free the @afalg.
  */
 void afalg_comm_free(QCryptoAfalg *afalg);
+
+extern QCryptoAfalg *
+afalg_cipher_ctx_new(QCryptoCipherAlgorithm alg, QCryptoCipherMode mode,
+                     const uint8_t *key, size_t nkey, Error **errp);
+
+extern struct QCryptoCipherDriver qcrypto_cipher_afalg_driver;
 
 #endif

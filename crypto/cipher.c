@@ -22,6 +22,9 @@
 #include "qapi/error.h"
 #include "crypto/cipher.h"
 
+#ifdef CONFIG_AF_ALG
+#include "crypto/afalg-comm.h"
+#endif
 
 static size_t alg_key_len[QCRYPTO_CIPHER_ALG__MAX] = {
     [QCRYPTO_CIPHER_ALG_AES_128] = 16,
@@ -162,18 +165,34 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
                                   Error **errp)
 {
     QCryptoCipher *cipher;
+    QCryptoCipherDriver *drv;
+    Error *errp2 = NULL;
     void *ctx;
+
+#ifdef CONFIG_AF_ALG
+    ctx = afalg_cipher_ctx_new(alg, mode, key, nkey, &errp2);
+    if (ctx) {
+        drv = &qcrypto_cipher_afalg_driver;
+        goto set;
+    }
+#endif
+
+    if (errp2) {
+        error_free(errp2);
+    }
 
     ctx = qcrypto_cipher_ctx_new(alg, mode, key, nkey, errp);
     if (ctx == NULL) {
         return NULL;
     }
+    drv = &qcrypto_cipher_lib_driver;
 
+set:
     cipher = g_new0(QCryptoCipher, 1);
     cipher->alg = alg;
     cipher->mode = mode;
     cipher->opaque = ctx;
-    cipher->driver = &qcrypto_cipher_lib_driver;
+    cipher->driver = drv;
 
     return cipher;
 }
@@ -213,4 +232,13 @@ void qcrypto_cipher_free(QCryptoCipher *cipher)
         cipher->driver->cipher_free(cipher);
         g_free(cipher);
     }
+}
+
+bool qcrypto_cipher_using_afalg_drv(QCryptoCipher *cipher)
+{
+#ifdef CONFIG_AF_ALG
+    return cipher->driver == &qcrypto_cipher_afalg_driver;
+#else
+    return false;
+#endif
 }
