@@ -36,6 +36,7 @@ struct QCryptoHashDriver {
 };
 
 extern QCryptoHashDriver qcrypto_hash_lib_driver;
+extern QCryptoHashDriver qcrypto_hash_afalg_driver;
 
 /**
  * qcrypto_hash_supports:
