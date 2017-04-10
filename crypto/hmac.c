@@ -12,6 +12,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "crypto/hmac.h"
+#include "crypto/afalg-comm.h"
 
 static const char hex[] = "0123456789abcdef";
 
@@ -88,16 +89,32 @@ QCryptoHmac *qcrypto_hmac_new(QCryptoHashAlgorithm alg,
 {
     QCryptoHmac *hmac;
     void *ctx;
+    QCryptoHmacDriver *drv;
+#ifdef CONFIG_AF_ALG
+    Error *errp2 = NULL;
+
+    ctx = afalg_hmac_ctx_new(alg, key, nkey, &errp2);
+    if (ctx) {
+        drv = &qcrypto_hmac_afalg_driver;
+        goto set;
+    }
+
+    if (errp2) {
+        error_free(errp2);
+    }
+#endif
 
     ctx = qcrypto_hmac_ctx_new(alg, key, nkey, errp);
     if (ctx == NULL) {
         return NULL;
     }
+    drv = &qcrypto_hmac_lib_driver;
 
+set:
     hmac = g_new0(QCryptoHmac, 1);
     hmac->alg = alg;
     hmac->opaque = ctx;
-    hmac->driver = &qcrypto_hmac_lib_driver;
+    hmac->driver = drv;
 
     return hmac;
 }
@@ -108,4 +125,13 @@ void qcrypto_hmac_free(QCryptoHmac *hmac)
         hmac->driver->hmac_free(hmac);
         g_free(hmac);
     }
+}
+
+bool qcrypto_hmac_using_afalg_drv(QCryptoHmac *hmac)
+{
+#ifdef CONFIG_AF_ALG
+    return hmac->driver == &qcrypto_hmac_afalg_driver;
+#else
+    return false;
+#endif
 }

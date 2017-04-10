@@ -13,6 +13,7 @@
 #define QCRYPTO_HMAC_H
 
 #include "qapi-types.h"
+#include "afalg-comm.h"
 
 typedef struct QCryptoHmacDriver QCryptoHmacDriver;
 typedef struct QCryptoHmac QCryptoHmac;
@@ -39,6 +40,10 @@ extern void *qcrypto_hmac_ctx_new(QCryptoHashAlgorithm alg,
                                   Error **errp);
 extern QCryptoHmacDriver qcrypto_hmac_lib_driver;
 
+extern QCryptoAfalg *afalg_hmac_ctx_new(QCryptoHashAlgorithm alg,
+                                        const uint8_t *key, size_t nkey,
+                                        Error **errp);
+extern QCryptoHmacDriver qcrypto_hmac_afalg_driver;
 
 /**
  * qcrypto_hmac_supports:
@@ -182,5 +187,13 @@ int qcrypto_hmac_digest(QCryptoHmac *hmac,
                         size_t len,
                         char **digest,
                         Error **errp);
+
+/**
+ * qcrypto_cipher_using_afalg_drv:
+ * @hmac: the hmac object
+ *
+ * Returns: True if @hmac using afalg driver, otherwise false.
+ */
+bool qcrypto_hmac_using_afalg_drv(QCryptoHmac *hmac);
 
 #endif
