@@ -1516,12 +1516,14 @@
 #
 # @vsock: vsock family (since 2.8)
 #
+# @afalg: af_alg family (since 2.10)
+#
 # @unknown: otherwise
 #
 # Since: 2.1
 ##
 { 'enum': 'NetworkAddressFamily',
-  'data': [ 'ipv4', 'ipv6', 'unix', 'vsock', 'unknown' ] }
+  'data': [ 'ipv4', 'ipv6', 'unix', 'vsock', 'afalg', 'unknown' ] }
 
 ##
 # @VncBasicInfo:
@@ -4119,6 +4121,22 @@
     'port': 'str' } }
 
 ##
+# @AfalgSocketAddress:
+#
+# Captures a socket address in the af_alg namespace.
+#
+# @type: type of the crypto algogrithms
+#
+# @name: name of the crypto algogrithms
+#
+# Since: 2.10
+##
+{ 'struct': 'AfalgSocketAddress',
+  'data': {
+    'type': 'str',
+    'name': 'str' }}
+
+##
 # @SocketAddress:
 #
 # Captures the address of a socket, which could also be a named file descriptor
@@ -4130,6 +4148,7 @@
     'inet': 'InetSocketAddress',
     'unix': 'UnixSocketAddress',
     'vsock': 'VsockSocketAddress',
+    'afalg': 'AfalgSocketAddress',
     'fd': 'String' } }
 
 ##

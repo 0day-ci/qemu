@@ -1151,6 +1151,97 @@ void socket_listen_cleanup(int fd, Error **errp)
     qapi_free_SocketAddress(addr);
 }
 
+#ifdef CONFIG_AF_ALG
+
+#include <linux/if_alg.h>
+
+static bool afalg_parse_bind_saddr(const AfalgSocketAddress *saddr,
+                                   struct sockaddr_alg *alg,
+                                   Error **errp)
+{
+    memset(alg, 0, sizeof(*alg));
+    alg->salg_family = AF_ALG;
+
+    if (qemu_strnlen(saddr->type, SALG_TYPE_LEN_MAX) == SALG_TYPE_LEN_MAX) {
+        error_setg(errp, "Afalg type(%s) is larger than 14 bytes",
+                   saddr->type);
+        return false;
+    }
+
+    if (qemu_strnlen(saddr->name, SALG_NAME_LEN_MAX) == SALG_NAME_LEN_MAX) {
+        error_setg(errp, "Afalg name(%s) is larger than 64 bytes",
+                   saddr->name);
+        return false;
+    }
+
+    pstrcpy((char *)alg->salg_type, SALG_TYPE_LEN_MAX, saddr->type);
+    pstrcpy((char *)alg->salg_name, SALG_NAME_LEN_MAX, saddr->name);
+
+    return true;
+}
+
+static int afalg_bind_saddr(const AfalgSocketAddress *saddr,
+                            Error **errp)
+{
+    struct sockaddr_alg alg;
+    int sbind;
+
+    if (!afalg_parse_bind_saddr(saddr, &alg, errp)) {
+        return -1;
+    }
+
+    sbind = qemu_socket(AF_ALG, SOCK_SEQPACKET, 0);
+    if (sbind < 0) {
+        error_setg_errno(errp, errno, "Failed to create socket");
+        return -1;
+    }
+
+    if (bind(sbind, (const struct sockaddr *)&alg, sizeof(alg)) != 0) {
+        error_setg_errno(errp, errno, "Failed to bind socket");
+        closesocket(sbind);
+        return -1;
+    }
+
+    return sbind;
+}
+
+/*
+ * Due to af_alg family doesn't support listen(), so we should
+ * use socket_bind() instead of socket_listen(). However, for
+ * other families, we should always use socket_listen().
+ */
+int socket_bind(SocketAddress *addr, Error **errp)
+{
+    int fd;
+
+    switch (addr->type) {
+    case SOCKET_ADDRESS_KIND_AFALG:
+        fd = afalg_bind_saddr(addr->u.afalg.data, errp);
+        break;
+
+    default:
+        abort();
+    }
+
+    return fd;
+}
+
+#else
+
+static void afalg_unsupported(Error **errp)
+{
+    error_setg(errp, "socket family AF_ALG unsupported");
+}
+
+static int afalg_bind_saddr(AfalgSocketAddress *vaddr,
+                            Error **errp)
+{
+    afalg_unsupported(errp);
+    return -1;
+}
+
+#endif
+
 int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp)
 {
     int fd;

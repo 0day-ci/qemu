@@ -51,6 +51,12 @@ int socket_listen(SocketAddress *addr, Error **errp);
 void socket_listen_cleanup(int fd, Error **errp);
 int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp);
 
+#ifdef CONFIG_AF_ALG
+#define SALG_TYPE_LEN_MAX 14
+#define SALG_NAME_LEN_MAX 64
+int socket_bind(SocketAddress *addr, Error **errp);
+#endif
+
 /* Old, ipv4 only bits.  Don't use for new code. */
 int parse_host_port(struct sockaddr_in *saddr, const char *str);
 int socket_init(void);
