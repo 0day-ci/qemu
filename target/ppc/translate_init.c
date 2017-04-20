@@ -8235,6 +8235,14 @@ static void gen_spr_power8_rpr(CPUPPCState *env)
 #endif
 }
 
+static void gen_spr_book3s_usprg3(CPUPPCState *env)
+{
+    spr_register(env, SPR_USPRG3, "USPRG3",
+                 &spr_read_ureg, SPR_NOACCESS,
+                 &spr_read_ureg, SPR_NOACCESS,
+                 0x00000000);
+}
+
 static void init_proc_book3s_common(CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -8243,6 +8251,7 @@ static void init_proc_book3s_common(CPUPPCState *env)
     gen_spr_book3s_pmu_sup(env);
     gen_spr_book3s_pmu_user(env);
     gen_spr_book3s_ctrl(env);
+    gen_spr_book3s_usprg3(env);
 }
 
 static void init_proc_970(CPUPPCState *env)
