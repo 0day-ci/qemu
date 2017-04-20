@@ -148,7 +148,6 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 		m->m_data += IF_MAXLINKHDR;
 		*mtod(m, struct tcpiphdr *) = *ti;
 		ti = mtod(m, struct tcpiphdr *);
-		memset(&ti->ti, 0, sizeof(ti->ti));
 		flags = TH_ACK;
 	} else {
 		/*
