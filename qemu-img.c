@@ -1033,8 +1033,8 @@ done:
 }
 
 /*
- * Returns true iff the first sector pointed to by 'buf' contains at least
- * a non-NUL byte.
+ * Returns true if the first sector pointed to by 'buf' contains at least
+ * a non-NULL byte.
  *
  * 'pnum' is set to the number of sectors (including and immediately following
  * the first one) that are known to be in the same allocated/unallocated state.
