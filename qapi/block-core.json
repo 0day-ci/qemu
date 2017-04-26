@@ -2520,7 +2520,7 @@
 { 'struct': 'BlockdevOptionsGluster',
   'data': { 'volume': 'str',
             'path': 'str',
-            'server': ['SocketAddressFlat'],
+            'server': ['SocketAddress'],
             '*debug': 'int',
             '*logfile': 'str' } }
 
@@ -2632,7 +2632,7 @@
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsSheepdog',
-  'data': { 'server': 'SocketAddressFlat',
+  'data': { 'server': 'SocketAddress',
             'vdi': 'str',
             '*snap-id': 'uint32',
             '*tag': 'str' } }
@@ -2847,7 +2847,7 @@
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsNbd',
-  'data': { 'server': 'SocketAddressFlat',
+  'data': { 'server': 'SocketAddress',
             '*export': 'str',
             '*tls-creds': 'str' } }
 
