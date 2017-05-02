@@ -3804,7 +3804,7 @@ static int monitor_can_read(void *opaque)
 {
     Monitor *mon = opaque;
 
-    return (mon->suspend_cnt == 0) ? 1 : 0;
+    return (mon->suspend_cnt == 0) ? 4096 : 0;
 }
 
 static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
