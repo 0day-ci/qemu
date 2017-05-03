@@ -1031,6 +1031,10 @@ vu_queue_get_avail_bytes(VuDev *dev, VuVirtq *vq, unsigned int *in_bytes,
     idx = vq->last_avail_idx;
 
     total_bufs = in_total = out_total = 0;
+    if (!vq->vring.avail) {
+        goto done;
+    }
+
     while ((rc = virtqueue_num_heads(dev, vq, idx)) > 0) {
         unsigned int max, num_bufs, indirect = 0;
         struct vring_desc *desc;
