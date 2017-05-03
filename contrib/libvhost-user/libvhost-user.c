@@ -1125,11 +1125,15 @@ vu_queue_avail_bytes(VuDev *dev, VuVirtq *vq, unsigned int in_bytes,
 
 /* Fetch avail_idx from VQ memory only when we really need to know if
  * guest has added some buffers. */
-int
+bool
 vu_queue_empty(VuDev *dev, VuVirtq *vq)
 {
+    if (!vq->vring.avail) {
+        return true;
+    }
+
     if (vq->shadow_avail_idx != vq->last_avail_idx) {
-        return 0;
+        return false;
     }
 
     return vring_avail_idx(vq) == vq->last_avail_idx;
