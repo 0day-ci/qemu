@@ -597,6 +597,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             outbuf[buflen++] = 0x83; // device identification
             if (s->qdev.type == TYPE_DISK) {
                 outbuf[buflen++] = 0xb0; // block limits
+                outbuf[buflen++] = 0xb1; /* block device characteristics */
                 outbuf[buflen++] = 0xb2; // thin provisioning
             }
             break;
@@ -737,6 +738,19 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             outbuf[41] = (max_io_sectors >> 16) & 0xff;
             outbuf[42] = (max_io_sectors >> 8) & 0xff;
             outbuf[43] = max_io_sectors & 0xff;
+            break;
+        }
+        case 0xb1: /* block device characteristics */
+        {
+            buflen = 0x40;
+            memset(outbuf + 4, 0, buflen - 4);
+
+            /* medium rotation rate: 0 = not reported, 1 = non-rotating */
+            outbuf[4] = 0;
+            outbuf[5] = s->qdev.conf.rotational ? 0 : 1;
+
+            /* nominal form factor */
+            outbuf[7] = 0; /* not reported */
             break;
         }
         case 0xb2: /* thin provisioning */
