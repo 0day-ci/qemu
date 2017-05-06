@@ -4037,6 +4037,10 @@ QemuOptsList qemu_common_drive_opts = {
             .name = BDRV_OPT_READ_ONLY,
             .type = QEMU_OPT_BOOL,
             .help = "open drive file as read-only",
+        },{
+            .name = "rotational",
+            .type = QEMU_OPT_BOOL,
+            .help = "rotational drive (off, on)",
         },
 
         THROTTLE_OPTS,

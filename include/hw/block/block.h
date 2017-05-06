@@ -27,6 +27,7 @@ typedef struct BlockConf {
     uint32_t cyls, heads, secs;
     OnOffAuto wce;
     bool share_rw;
+    bool rotational;
     BlockdevOnError rerror;
     BlockdevOnError werror;
 } BlockConf;
@@ -56,7 +57,8 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
                        _conf.discard_granularity, -1), \
     DEFINE_PROP_ON_OFF_AUTO("write-cache", _state, _conf.wce, \
                             ON_OFF_AUTO_AUTO), \
-    DEFINE_PROP_BOOL("share-rw", _state, _conf.share_rw, false)
+    DEFINE_PROP_BOOL("share-rw", _state, _conf.share_rw, false), \
+    DEFINE_PROP_BOOL("rotational", _state, _conf.rotational, true)
 
 #define DEFINE_BLOCK_CHS_PROPERTIES(_state, _conf)      \
     DEFINE_PROP_UINT32("cyls", _state, _conf.cyls, 0),  \
