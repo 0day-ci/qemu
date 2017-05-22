@@ -52,6 +52,8 @@
 /* macOS 10.12 deprecated many constants, #define the new names for older SDKs */
 #if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_12
 #define NSEventMaskAny                  NSAnyEventMask
+#define NSEventModifierFlagCapsLock     NSAlphaShiftKeyMask
+#define NSEventModifierFlagShift        NSShiftKeyMask
 #define NSEventModifierFlagCommand      NSCommandKeyMask
 #define NSEventModifierFlagControl      NSControlKeyMask
 #define NSEventModifierFlagOption       NSAlternateKeyMask
@@ -536,6 +538,16 @@ QemuCocoaView *cocoaView;
     }
 }
 
+- (void) toggleModifier: (int)keycode {
+    if (modifiers_state[keycode] == 0) { // keydown
+        qemu_input_event_send_key_qcode(dcl->con, keycode, true);
+        modifiers_state[keycode] = 1;
+    } else { // keyup
+        qemu_input_event_send_key_qcode(dcl->con, keycode, false);
+        modifiers_state[keycode] = 0;
+    }
+}
+
 - (void) handleEvent:(NSEvent *)event
 {
     COCOA_DEBUG("QemuCocoaView: handleEvent\n");
@@ -547,7 +559,33 @@ QemuCocoaView *cocoaView;
 
     switch ([event type]) {
         case NSEventTypeFlagsChanged:
-            keycode = cocoa_keycode_to_qemu([event keyCode]);
+            if ([event keyCode] == 0) {
+                // When the Cocoa keyCode is zero that means keys should be
+                // synthesized based on the values in in the eventModifiers
+                // bitmask.
+
+                if (qemu_console_is_graphic(NULL)) {
+                    NSEventModifierFlags modifiers = [event modifierFlags];
+
+                    if (!!(modifiers & NSEventModifierFlagCapsLock) != !!modifiers_state[Q_KEY_CODE_CAPS_LOCK]) {
+                        [self toggleModifier:Q_KEY_CODE_CAPS_LOCK];
+                    }
+                    if (!!(modifiers & NSEventModifierFlagShift) != !!modifiers_state[Q_KEY_CODE_SHIFT]) {
+                        [self toggleModifier:Q_KEY_CODE_SHIFT];
+                    }
+                    if (!!(modifiers & NSEventModifierFlagControl) != !!modifiers_state[Q_KEY_CODE_CTRL]) {
+                        [self toggleModifier:Q_KEY_CODE_CTRL];
+                    }
+                    if (!!(modifiers & NSEventModifierFlagOption) != !!modifiers_state[Q_KEY_CODE_ALT]) {
+                        [self toggleModifier:Q_KEY_CODE_ALT];
+                    }
+                    if (!!(modifiers & NSEventModifierFlagCommand) != !!modifiers_state[Q_KEY_CODE_META_L]) {
+                        [self toggleModifier:Q_KEY_CODE_META_L];
+                    }
+                }
+            } else {
+                keycode = cocoa_keycode_to_qemu([event keyCode]);
+            }
 
             if ((keycode == Q_KEY_CODE_META_L || keycode == Q_KEY_CODE_META_R)
                && !isMouseGrabbed) {
@@ -562,13 +600,7 @@ QemuCocoaView *cocoaView;
                     qemu_input_event_send_key_qcode(dcl->con, keycode, true);
                     qemu_input_event_send_key_qcode(dcl->con, keycode, false);
                 } else if (qemu_console_is_graphic(NULL)) {
-                    if (modifiers_state[keycode] == 0) { // keydown
-                        qemu_input_event_send_key_qcode(dcl->con, keycode, true);
-                        modifiers_state[keycode] = 1;
-                    } else { // keyup
-                        qemu_input_event_send_key_qcode(dcl->con, keycode, false);
-                        modifiers_state[keycode] = 0;
-                    }
+                  [self toggleModifier:keycode];
                 }
             }
 
