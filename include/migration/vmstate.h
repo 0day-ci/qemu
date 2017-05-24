@@ -1057,6 +1057,7 @@ void vmstate_register_ram_global(struct MemoryRegion *memory);
 
 typedef struct AnnounceTimer {
     QEMUTimer *tm;
+    struct AnnounceTimer **entry;
     AnnounceParameters params;
     QEMUClockType type;
     int round;
