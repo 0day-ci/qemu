@@ -26,6 +26,7 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "hw/mem/nvdimm.h"
+#include "qemu/error-report.h"
 
 static void nvdimm_get_label_size(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
@@ -78,11 +79,47 @@ static MemoryRegion *nvdimm_get_memory_region(PCDIMMDevice *dimm)
     return &nvdimm->nvdimm_mr;
 }
 
+static void nvdimm_check_dax(HostMemoryBackend *hostmem)
+{
+    char *mem_path =
+        object_property_get_str(OBJECT(hostmem), "mem-path", NULL);
+    char *dev_name = NULL, *sysfs_path = NULL;
+    bool is_dax = false;
+
+    if (!mem_path) {
+        goto out;
+    }
+
+    if (!g_str_has_prefix(mem_path, "/dev/dax")) {
+        goto out;
+    }
+
+    dev_name = mem_path + strlen("/dev/");
+    sysfs_path = g_strdup_printf("/sys/class/dax/%s", dev_name);
+    if (access(sysfs_path, F_OK)) {
+        goto out;
+    }
+
+    is_dax = true;
+
+ out:
+    if (!is_dax) {
+        error_report("warning: nvdimm backend %s is not DAX device, "
+                     "unable to guarantee persistence of guest writes",
+                     mem_path ?: "RAM");
+    }
+
+    g_free(sysfs_path);
+    g_free(mem_path);
+}
+
 static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
 {
     MemoryRegion *mr = host_memory_backend_get_memory(dimm->hostmem, errp);
     NVDIMMDevice *nvdimm = NVDIMM(dimm);
     uint64_t align, pmem_size, size = memory_region_size(mr);
+
+    nvdimm_check_dax(dimm->hostmem);
 
     align = memory_region_get_alignment(mr);
 
