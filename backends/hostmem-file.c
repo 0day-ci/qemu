@@ -33,6 +33,7 @@ struct HostMemoryBackendFile {
 
     bool share;
     char *mem_path;
+    uint64_t align;
 };
 
 static void
@@ -57,7 +58,7 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
         path = object_get_canonical_path(OBJECT(backend));
         memory_region_init_ram_from_file(&backend->mr, OBJECT(backend),
                                  path,
-                                 backend->size, fb->share,
+                                 backend->size, fb->align, fb->share,
                                  fb->mem_path, errp);
         g_free(path);
     }
@@ -104,6 +105,40 @@ static void file_memory_backend_set_share(Object *o, bool value, Error **errp)
 }
 
 static void
+file_memory_backend_get_align(Object *o, Visitor *v, const char *name,
+                              void *opaque, Error **errp)
+{
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
+    uint64_t val = fb->align;
+
+    visit_type_size(v, name, &val, errp);
+}
+
+static void
+file_memory_backend_set_align(Object *o, Visitor *v, const char *name,
+                              void *opaque, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(o);
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
+    Error *local_err = NULL;
+    uint64_t val;
+
+    if (host_memory_backend_mr_inited(backend)) {
+        error_setg(&local_err, "cannot change property value");
+        goto out;
+    }
+
+    visit_type_size(v, name, &val, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    fb->align = val;
+
+ out:
+    error_propagate(errp, local_err);
+}
+
+static void
 file_backend_class_init(ObjectClass *oc, void *data)
 {
     HostMemoryBackendClass *bc = MEMORY_BACKEND_CLASS(oc);
@@ -116,6 +151,10 @@ file_backend_class_init(ObjectClass *oc, void *data)
     object_class_property_add_str(oc, "mem-path",
         get_mem_path, set_mem_path,
         &error_abort);
+    object_class_property_add(oc, "align", "int",
+        file_memory_backend_get_align,
+        file_memory_backend_set_align,
+        NULL, NULL, &error_abort);
 }
 
 static void file_backend_instance_finalize(Object *o)
