@@ -1884,7 +1884,7 @@ extern const char *const %(c_name)s_lookup[];
     return ret
 
 
-def gen_params(arg_type, boxed, extra):
+def build_params(arg_type, boxed, extra):
     if not arg_type:
         assert not boxed
         return extra
