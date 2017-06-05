@@ -165,7 +165,7 @@ Primary(ip:3.3.3.3):
 -netdev tap,id=hn0,vhost=off,script=/etc/qemu-ifup,downscript=/etc/qemu-ifdown
 -device e1000,id=e0,netdev=hn0,mac=52:a4:00:12:78:66
 -chardev socket,id=mirror0,host=3.3.3.3,port=9003,server,nowait
--chardev socket,id=compare1,host=3.3.3.3,port=9004,server,nowait
+-chardev socket,id=compare1,host=3.3.3.3,port=9004,server,wait
 -chardev socket,id=compare0,host=3.3.3.3,port=9001,server,nowait
 -chardev socket,id=compare0-0,host=3.3.3.3,port=9001
 -chardev socket,id=compare_out,host=3.3.3.3,port=9005,server,nowait
