@@ -27,6 +27,7 @@
 #include "io/channel-tls.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qemu/log.h"
 #include "qapi/clone-visitor.h"
 
 #include "chardev/char-io.h"
@@ -765,7 +766,7 @@ static int tcp_chr_wait_connected(Chardev *chr, Error **errp)
      * in TLS and telnet cases, only wait for an accepted socket */
     while (!s->ioc) {
         if (s->is_listen) {
-            error_report("QEMU waiting for connection on: %s",
+            qemu_log("QEMU waiting for connection on: %s",
                          chr->filename);
             qio_channel_set_blocking(QIO_CHANNEL(s->listen_ioc), true, NULL);
             tcp_chr_accept(QIO_CHANNEL(s->listen_ioc), G_IO_IN, chr);
