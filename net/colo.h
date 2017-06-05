@@ -84,5 +84,6 @@ Connection *connection_get(GHashTable *connection_track_table,
 void connection_hashtable_reset(GHashTable *connection_track_table);
 Packet *packet_new(const void *data, int size);
 void packet_destroy(void *opaque, void *user_data);
+void remove_fd_in_watch(Chardev *chr);
 
 #endif /* QEMU_COLO_PROXY_H */
