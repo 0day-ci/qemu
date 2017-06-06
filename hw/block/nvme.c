@@ -284,6 +284,10 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
         block_acct_invalid(blk_get_stats(n->conf.blk), acct);
         return NVME_LBA_RANGE | NVME_DNR;
     }
+    if (!n->id_ctrl.sgls && NVME_CMD_FLAGS_PSDT(rw->flags)) {
+        block_acct_invalid(blk_get_stats(n->conf.blk), acct);
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
 
     if (nvme_map_prp(&req->qsg, prp1, prp2, data_size, n)) {
         block_acct_invalid(blk_get_stats(n->conf.blk), acct);
@@ -618,6 +622,11 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 
 static uint16_t nvme_admin_cmd(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 {
+    /* Admin cmd for NVMe-over-PCIE should NOT use SGL */
+    if (NVME_CMD_FLAGS_PSDT(cmd->flags)) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
     switch (cmd->opcode) {
     case NVME_ADM_CMD_DELETE_SQ:
         return nvme_del_sq(n, cmd);
@@ -967,6 +976,8 @@ static int nvme_init(PCIDevice *pci_dev)
     if (blk_enable_write_cache(n->conf.blk)) {
         id->vwc = 1;
     }
+    /* TODO: Support SGL in NVMe-over-PCIE in both qemu and kernel */
+    id->sgls = 0;
 
     n->bar.cap = 0;
     NVME_CAP_SET_MQES(n->bar.cap, 0x7ff);

@@ -229,9 +229,14 @@ typedef union NvmeDataPtr{
     NvmeKeyedSGLDesc    ksgl;
 } NvmeDataPtr;
 
+#define _NVME_CMD_FLAGS_FUSE_MASK    ((1 << 0)  + (1 << 1))
+#define _NVME_CMD_FLAGS_PSDT_MASK    ((1 << 15) + (1 << 14))
+#define NVME_CMD_FLAGS_FUSE(flags)  ((flags) & _NVME_CMD_FLAGS_FUSE_MASK)
+#define NVME_CMD_FLAGS_PSDT(flags)  ((flags) & _NVME_CMD_FLAGS_PSDT_MASK)
+
 typedef struct NvmeCmd {
     uint8_t     opcode;
-    uint8_t     fuse;
+    uint8_t     flags;
     uint16_t    cid;
     uint32_t    nsid;
     uint64_t    res1;
