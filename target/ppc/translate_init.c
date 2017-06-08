@@ -8561,6 +8561,9 @@ static bool cpu_has_work_POWER7(CPUState *cs)
     CPUPPCState *env = &cpu->env;
 
     if (cs->halted) {
+        if (env->in_reset) {
+            return false;
+        }
         if (!(cs->interrupt_request & CPU_INTERRUPT_HARD)) {
             return false;
         }
@@ -8718,6 +8721,9 @@ static bool cpu_has_work_POWER8(CPUState *cs)
     CPUPPCState *env = &cpu->env;
 
     if (cs->halted) {
+        if (env->in_reset) {
+            return false;
+        }
         if (!(cs->interrupt_request & CPU_INTERRUPT_HARD)) {
             return false;
         }
@@ -8899,6 +8905,9 @@ static bool cpu_has_work_POWER9(CPUState *cs)
     CPUPPCState *env = &cpu->env;
 
     if (cs->halted) {
+        if (env->in_reset) {
+            return false;
+        }
         if (!(cs->interrupt_request & CPU_INTERRUPT_HARD)) {
             return false;
         }
