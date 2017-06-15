@@ -5743,7 +5743,7 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
         max_insns = TCG_MAX_INSNS;
     }
 
-    gen_tb_start(tb);
+    gen_tb_start(tb, cpu_env);
 
     do {
         tcg_gen_insn_start(dc.pc, dc.cc_op);
@@ -5761,7 +5761,7 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
         }
 
         if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
-            gen_io_start();
+            gen_io_start(cpu_env);
         }
 
         status = translate_one(env, &dc);
@@ -5780,7 +5780,7 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
     } while (status == NO_EXIT);
 
     if (tb->cflags & CF_LAST_IO) {
-        gen_io_end();
+        gen_io_start(cpu_env);
     }
 
     switch (status) {

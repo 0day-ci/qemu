@@ -5789,7 +5789,7 @@ void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
         max_insns = TCG_MAX_INSNS;
     }
 
-    gen_tb_start(tb);
+    gen_tb_start(tb, cpu_env);
     do {
         if (dc->npc & JUMP_PC) {
             assert(dc->jump_pc[1] == dc->pc + 4);
@@ -5811,7 +5811,7 @@ void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
         }
 
         if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
-            gen_io_start();
+            gen_io_start(cpu_env);
         }
 
         insn = cpu_ldl_code(env, dc->pc);
@@ -5838,7 +5838,7 @@ void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
 
  exit_gen_loop:
     if (tb->cflags & CF_LAST_IO) {
-        gen_io_end();
+        gen_io_start(cpu_env);
     }
     if (!dc->is_br) {
         if (dc->pc != DYNAMIC_PC &&

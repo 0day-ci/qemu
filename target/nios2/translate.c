@@ -834,7 +834,7 @@ void gen_intermediate_code(CPUNios2State *env, TranslationBlock *tb)
         }
     }
 
-    gen_tb_start(tb);
+    gen_tb_start(tb, cpu_env);
     do {
         tcg_gen_insn_start(dc->pc);
         num_insns++;
@@ -850,7 +850,7 @@ void gen_intermediate_code(CPUNios2State *env, TranslationBlock *tb)
         }
 
         if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
-            gen_io_start();
+            gen_io_start(cpu_env);
         }
 
         /* Decode an instruction */
@@ -867,7 +867,7 @@ void gen_intermediate_code(CPUNios2State *env, TranslationBlock *tb)
              num_insns < max_insns);
 
     if (tb->cflags & CF_LAST_IO) {
-        gen_io_end();
+        gen_io_start(cpu_env);
     }
 
     /* Indicate where the next block should start */

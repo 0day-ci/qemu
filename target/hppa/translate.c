@@ -3773,7 +3773,7 @@ void gen_intermediate_code(CPUHPPAState *env, struct TranslationBlock *tb)
     }
 
     num_insns = 0;
-    gen_tb_start(tb);
+    gen_tb_start(tb, cpu_env);
 
     /* Seed the nullification status from PSW[N], as shown in TB->FLAGS.  */
     ctx.null_cond = cond_make_f();
@@ -3793,7 +3793,7 @@ void gen_intermediate_code(CPUHPPAState *env, struct TranslationBlock *tb)
             break;
         }
         if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
-            gen_io_start();
+            gen_io_start(cpu_env);
         }
 
         if (ctx.iaoq_f < TARGET_PAGE_SIZE) {
@@ -3869,7 +3869,7 @@ void gen_intermediate_code(CPUHPPAState *env, struct TranslationBlock *tb)
     } while (ret == NO_EXIT);
 
     if (tb->cflags & CF_LAST_IO) {
-        gen_io_end();
+        gen_io_start(cpu_env);
     }
 
     switch (ret) {

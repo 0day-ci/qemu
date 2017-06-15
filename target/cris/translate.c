@@ -3145,7 +3145,7 @@ void gen_intermediate_code(CPUCRISState *env, struct TranslationBlock *tb)
         max_insns = TCG_MAX_INSNS;
     }
 
-    gen_tb_start(tb);
+    gen_tb_start(tb, cpu_env);
     do {
         tcg_gen_insn_start(dc->delayed_branch == 1
                            ? dc->ppc | 1 : dc->pc);
@@ -3168,7 +3168,7 @@ void gen_intermediate_code(CPUCRISState *env, struct TranslationBlock *tb)
         LOG_DIS("%8.8x:\t", dc->pc);
 
         if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
-            gen_io_start();
+            gen_io_start(cpu_env);
         }
         dc->clear_x = 1;
 
@@ -3241,7 +3241,7 @@ void gen_intermediate_code(CPUCRISState *env, struct TranslationBlock *tb)
     npc = dc->pc;
 
         if (tb->cflags & CF_LAST_IO)
-            gen_io_end();
+            gen_io_start(cpu_env);
     /* Force an update if the per-tb cpu state has changed.  */
     if (dc->is_jmp == DISAS_NEXT
         && (dc->cpustate_changed || !dc->flagx_known

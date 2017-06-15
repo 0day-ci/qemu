@@ -1329,9 +1329,9 @@ static ExitStatus gen_mfpr(DisasContext *ctx, TCGv va, int regno)
         helper = gen_helper_get_vmtime;
     do_helper:
         if (use_icount) {
-            gen_io_start();
+            gen_io_start(cpu_env);
             helper(va);
-            gen_io_end();
+            gen_io_start(cpu_env);
             return EXIT_PC_STALE;
         } else {
             helper(va);
@@ -2379,9 +2379,9 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             /* RPCC */
             va = dest_gpr(ctx, ra);
             if (ctx->tb->cflags & CF_USE_ICOUNT) {
-                gen_io_start();
+                gen_io_start(cpu_env);
                 gen_helper_load_pcc(va, cpu_env);
-                gen_io_end();
+                gen_io_start(cpu_env);
                 ret = EXIT_PC_STALE;
             } else {
                 gen_helper_load_pcc(va, cpu_env);
@@ -2956,7 +2956,7 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
         pc_mask = ~TARGET_PAGE_MASK;
     }
 
-    gen_tb_start(tb);
+    gen_tb_start(tb, cpu_env);
     do {
         tcg_gen_insn_start(ctx.pc);
         num_insns++;
@@ -2971,7 +2971,7 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
             break;
         }
         if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
-            gen_io_start();
+            gen_io_start(cpu_env);
         }
         insn = cpu_ldl_code(env, ctx.pc);
 
@@ -2992,7 +2992,7 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
     } while (ret == NO_EXIT);
 
     if (tb->cflags & CF_LAST_IO) {
-        gen_io_end();
+        gen_io_start(cpu_env);
     }
 
     switch (ret) {
