@@ -33,8 +33,11 @@
 
 /* previously fixed value */
 #define VIRTIO_NET_RX_QUEUE_DEFAULT_SIZE 256
+#define VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE 256
+
 /* for now, only allow larger queues; with virtio-1, guest can downsize */
 #define VIRTIO_NET_RX_QUEUE_MIN_SIZE VIRTIO_NET_RX_QUEUE_DEFAULT_SIZE
+#define VIRTIO_NET_TX_QUEUE_MIN_SIZE VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE
 
 /*
  * Calculate the number of bytes up to and including the given 'field' of
@@ -1491,18 +1494,33 @@ static void virtio_net_tx_bh(void *opaque)
 static void virtio_net_add_queue(VirtIONet *n, int index)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    NetClientState *nc = qemu_get_queue(n->nic);
 
     n->vqs[index].rx_vq = virtio_add_queue(vdev, n->net_conf.rx_queue_size,
                                            virtio_net_handle_rx);
+
+    /*
+     * Currently, backends other than vhost-user don't support 1024 queue
+     * size.
+     */
+    if (n->net_conf.tx_queue_size == VIRTQUEUE_MAX_SIZE &&
+        nc->peer->info->type != NET_CLIENT_DRIVER_VHOST_USER) {
+        fprintf(stderr, "warning: %s: queue size %d not supported\n",
+                __func__, n->net_conf.tx_queue_size);
+        n->net_conf.tx_queue_size = VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE;
+    }
+
     if (n->net_conf.tx && !strcmp(n->net_conf.tx, "timer")) {
         n->vqs[index].tx_vq =
-            virtio_add_queue(vdev, 256, virtio_net_handle_tx_timer);
+            virtio_add_queue(vdev, n->net_conf.tx_queue_size,
+                             virtio_net_handle_tx_timer);
         n->vqs[index].tx_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                               virtio_net_tx_timer,
                                               &n->vqs[index]);
     } else {
         n->vqs[index].tx_vq =
-            virtio_add_queue(vdev, 256, virtio_net_handle_tx_bh);
+            virtio_add_queue(vdev, n->net_conf.tx_queue_size,
+                             virtio_net_handle_tx_bh);
         n->vqs[index].tx_bh = qemu_bh_new(virtio_net_tx_bh, &n->vqs[index]);
     }
 
@@ -1910,6 +1928,17 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (n->net_conf.tx_queue_size < VIRTIO_NET_TX_QUEUE_MIN_SIZE ||
+        n->net_conf.tx_queue_size > VIRTQUEUE_MAX_SIZE ||
+        !is_power_of_2(n->net_conf.tx_queue_size)) {
+        error_setg(errp, "Invalid tx_queue_size (= %" PRIu16 "), "
+                   "must be a power of 2 between %d and %d",
+                   n->net_conf.tx_queue_size, VIRTIO_NET_TX_QUEUE_MIN_SIZE,
+                   VIRTQUEUE_MAX_SIZE);
+        virtio_cleanup(vdev);
+        return;
+    }
+
     n->max_queues = MAX(n->nic_conf.peers.queues, 1);
     if (n->max_queues * 2 + 1 > VIRTIO_QUEUE_MAX) {
         error_setg(errp, "Invalid number of queues (= %" PRIu32 "), "
@@ -1930,17 +1959,11 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         error_report("Defaulting to \"bh\"");
     }
 
-    for (i = 0; i < n->max_queues; i++) {
-        virtio_net_add_queue(n, i);
-    }
-
-    n->ctrl_vq = virtio_add_queue(vdev, 64, virtio_net_handle_ctrl);
     qemu_macaddr_default_if_unset(&n->nic_conf.macaddr);
     memcpy(&n->mac[0], &n->nic_conf.macaddr, sizeof(n->mac));
     n->status = VIRTIO_NET_S_LINK_UP;
     n->announce_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                      virtio_net_announce_timer, n);
-
     if (n->netclient_type) {
         /*
          * Happen when virtio_net_set_netclient_name has been called.
@@ -1951,6 +1974,11 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         n->nic = qemu_new_nic(&net_virtio_info, &n->nic_conf,
                               object_get_typename(OBJECT(dev)), dev->id, n);
     }
+
+    for (i = 0; i < n->max_queues; i++) {
+        virtio_net_add_queue(n, i);
+    }
+    n->ctrl_vq = virtio_add_queue(vdev, 64, virtio_net_handle_ctrl);
 
     peer_test_vnet_hdr(n);
     if (peer_has_vnet_hdr(n)) {
@@ -2089,6 +2117,8 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_STRING("tx", VirtIONet, net_conf.tx),
     DEFINE_PROP_UINT16("rx_queue_size", VirtIONet, net_conf.rx_queue_size,
                        VIRTIO_NET_RX_QUEUE_DEFAULT_SIZE),
+    DEFINE_PROP_UINT16("tx_queue_size", VirtIONet, net_conf.tx_queue_size,
+                       VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE),
     DEFINE_PROP_UINT16("host_mtu", VirtIONet, net_conf.mtu, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
