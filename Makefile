@@ -209,6 +209,9 @@ ifdef BUILD_DOCS
 DOCS=qemu-doc.html qemu-doc.txt qemu.1 qemu-img.1 qemu-nbd.8 qemu-ga.8
 DOCS+=docs/qemu-qmp-ref.html docs/qemu-qmp-ref.txt docs/qemu-qmp-ref.7
 DOCS+=docs/qemu-ga-ref.html docs/qemu-ga-ref.txt docs/qemu-ga-ref.7
+DOCS+=docs/qemu-block-drivers.html
+DOCS+=docs/qemu-block-drivers.txt
+DOCS+=docs/qemu-block-drivers.7
 ifdef CONFIG_VIRTFS
 DOCS+=fsdev/virtfs-proxy-helper.1
 endif
@@ -520,10 +523,10 @@ distclean: clean
 	rm -f config.log
 	rm -f linux-headers/asm
 	rm -f docs/qemu-ga-qapi.texi docs/qemu-qmp-qapi.texi docs/version.texi
-	rm -f docs/qemu-qmp-ref.7 docs/qemu-ga-ref.7
-	rm -f docs/qemu-qmp-ref.txt docs/qemu-ga-ref.txt
-	rm -f docs/qemu-qmp-ref.pdf docs/qemu-ga-ref.pdf
-	rm -f docs/qemu-qmp-ref.html docs/qemu-ga-ref.html
+	rm -f docs/qemu-qmp-ref.7 docs/qemu-ga-ref.7 docs/qemu-block-drivers.7
+	rm -f docs/qemu-qmp-ref.txt docs/qemu-ga-ref.txt docs/qemu-block-drivers.txt
+	rm -f docs/qemu-qmp-ref.pdf docs/qemu-ga-ref.pdf docs/qemu-block-drivers.pdf
+	rm -f docs/qemu-qmp-ref.html docs/qemu-ga-ref.html docs/qemu-block-drivers.html
 	for d in $(TARGET_DIRS); do \
 	rm -rf $$d || exit 1 ; \
         done
@@ -564,11 +567,14 @@ install-doc: $(DOCS)
 	$(INSTALL_DATA) qemu-doc.txt "$(DESTDIR)$(qemu_docdir)"
 	$(INSTALL_DATA) docs/qemu-qmp-ref.html "$(DESTDIR)$(qemu_docdir)"
 	$(INSTALL_DATA) docs/qemu-qmp-ref.txt "$(DESTDIR)$(qemu_docdir)"
+	$(INSTALL_DATA) docs/qemu-block-drivers.html "$(DESTDIR)$(qemu_docdir)"
+	$(INSTALL_DATA) docs/qemu-block-drivers.txt "$(DESTDIR)$(qemu_docdir)"
 ifdef CONFIG_POSIX
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man1"
 	$(INSTALL_DATA) qemu.1 "$(DESTDIR)$(mandir)/man1"
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man7"
 	$(INSTALL_DATA) docs/qemu-qmp-ref.7 "$(DESTDIR)$(mandir)/man7"
+	$(INSTALL_DATA) docs/qemu-block-drivers.7 "$(DESTDIR)$(mandir)/man7"
 ifneq ($(TOOLS),)
 	$(INSTALL_DATA) qemu-img.1 "$(DESTDIR)$(mandir)/man1"
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man8"
@@ -688,6 +694,7 @@ docs/version.texi: $(SRC_PATH)/VERSION
 
 docs/qemu-ga-ref.html docs/qemu-ga-ref.info docs/qemu-ga-ref.txt docs/qemu-ga-ref.pdf docs/qemu-ga-ref.7.pod: docs/version.texi
 docs/qemu-qmp-ref.html docs/qemu-qmp-ref.info docs/qemu-qmp-ref.txt docs/qemu-qmp-ref.pdf docs/qemu-qmp-ref.pod: docs/version.texi
+docs/qemu-block-drivers.html docs/qemu-block-drivers.info docs/qemu-block-drivers.txt docs/qemu-block-drivers.pdf docs/qemu-block-drivers.pod: docs/version.texi
 
 qemu-options.texi: $(SRC_PATH)/qemu-options.hx $(SRC_PATH)/scripts/hxtool
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -t < $< > $@,"GEN","$@")
@@ -716,21 +723,24 @@ fsdev/virtfs-proxy-helper.1: fsdev/virtfs-proxy-helper.texi
 qemu-nbd.8: qemu-nbd.texi qemu-option-trace.texi
 qemu-ga.8: qemu-ga.texi
 
-html: qemu-doc.html docs/qemu-qmp-ref.html docs/qemu-ga-ref.html
-info: qemu-doc.info docs/qemu-qmp-ref.info docs/qemu-ga-ref.info
-pdf: qemu-doc.pdf docs/qemu-qmp-ref.pdf docs/qemu-ga-ref.pdf
-txt: qemu-doc.txt docs/qemu-qmp-ref.txt docs/qemu-ga-ref.txt
+html: qemu-doc.html docs/qemu-qmp-ref.html docs/qemu-ga-ref.html docs/qemu-block-drivers.html
+info: qemu-doc.info docs/qemu-qmp-ref.info docs/qemu-ga-ref.info docs/qemu-block-drivers.info
+pdf: qemu-doc.pdf docs/qemu-qmp-ref.pdf docs/qemu-ga-ref.pdf docs/qemu-block-drivers.pdf
+txt: qemu-doc.txt docs/qemu-qmp-ref.txt docs/qemu-ga-ref.txt docs/qemu-block-drivers.txt
 
 qemu-doc.html qemu-doc.info qemu-doc.pdf qemu-doc.txt: \
 	qemu-img.texi qemu-nbd.texi qemu-options.texi qemu-option-trace.texi \
 	qemu-monitor.texi qemu-img-cmds.texi qemu-ga.texi \
-	qemu-monitor-info.texi
+	qemu-monitor-info.texi docs/qemu-block-drivers.texi
 
 docs/qemu-ga-ref.dvi docs/qemu-ga-ref.html docs/qemu-ga-ref.info docs/qemu-ga-ref.pdf docs/qemu-ga-ref.txt docs/qemu-ga-ref.7: \
 docs/qemu-ga-ref.texi docs/qemu-ga-qapi.texi
 
 docs/qemu-qmp-ref.dvi docs/qemu-qmp-ref.html docs/qemu-qmp-ref.info docs/qemu-qmp-ref.pdf docs/qemu-qmp-ref.txt docs/qemu-qmp-ref.7: \
 docs/qemu-qmp-ref.texi docs/qemu-qmp-qapi.texi
+
+docs/qemu-block-drivers.dvi docs/qemu-block-drivers.html docs/qemu-block-drivers.info docs/qemu-block-drivers.pdf docs/qemu-block-drivers.txt docs/qemu-block-drivers.7: \
+docs/qemu-block-drivers.texi
 
 
 ifdef CONFIG_WIN32
