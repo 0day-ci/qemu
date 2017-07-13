@@ -286,9 +286,21 @@ GSource *qio_channel_create_socket_watch(QIOChannel *ioc,
     QIOChannelSocketSource *ssource;
 
 #ifdef WIN32
-    WSAEventSelect(socket, ioc->event,
-                   FD_READ | FD_ACCEPT | FD_CLOSE |
-                   FD_CONNECT | FD_WRITE | FD_OOB);
+    long bitmask = 0;
+
+    if (condition & (G_IO_IN | G_IO_PRI)) {
+        bitmask |= FD_READ | FD_ACCEPT;
+    }
+
+    if (condition & G_IO_HUP) {
+        bitmask |= FD_CLOSE;
+    }
+
+    if (condition & G_IO_OUT) {
+        bitmask |= FD_WRITE | FD_CONNECT;
+    }
+
+    WSAEventSelect(socket, ioc->event, bitmask);
 #endif
 
     source = g_source_new(&qio_channel_socket_source_funcs,
