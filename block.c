@@ -2615,6 +2615,7 @@ fail:
     QDECREF(bs->options);
     QDECREF(options);
     bs->options = NULL;
+    bs->explicit_options = NULL;
     bdrv_unref(bs);
     error_propagate(errp, local_err);
     return NULL;
@@ -3077,6 +3078,7 @@ static void bdrv_close(BlockDriverState *bs)
         QDECREF(bs->options);
         QDECREF(bs->explicit_options);
         bs->options = NULL;
+        bs->explicit_options = NULL;
         QDECREF(bs->full_open_options);
         bs->full_open_options = NULL;
     }
