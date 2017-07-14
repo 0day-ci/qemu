@@ -20191,23 +20191,6 @@ void mips_tcg_init(void)
 
 #include "translate_init.c"
 
-MIPSCPU *cpu_mips_init(const char *cpu_model)
-{
-    ObjectClass *oc;
-    MIPSCPU *cpu;
-
-    oc = cpu_class_by_name(TYPE_MIPS_CPU, cpu_model);
-    if (oc == NULL) {
-        return NULL;
-    }
-
-    cpu = MIPS_CPU(object_new(object_class_get_name(oc)));
-
-    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
-
-    return cpu;
-}
-
 bool cpu_supports_cps_smp(const char *cpu_model)
 {
     const mips_def_t *def = cpu_mips_find_by_name(cpu_model);
