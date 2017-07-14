@@ -1070,4 +1070,7 @@ static inline void QEMU_NORETURN do_raise_exception(CPUMIPSState *env,
     do_raise_exception_err(env, exception, 0, pc);
 }
 
+void mips_cpu_mmu_init(CPUMIPSState *env, const mips_def_t *def);
+void mips_cpu_fpu_init(CPUMIPSState *env, const mips_def_t *def);
+void mips_cpu_mvp_init(CPUMIPSState *env, const mips_def_t *def);
 #endif /* MIPS_CPU_H */

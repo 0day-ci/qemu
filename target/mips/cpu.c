@@ -122,8 +122,17 @@ static void mips_cpu_disas_set_info(CPUState *s, disassemble_info *info) {
 static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
+    MIPSCPU *cpu = MIPS_CPU(dev);
+    CPUMIPSState *env = &cpu->env;
     MIPSCPUClass *mcc = MIPS_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
+
+    env->exception_base = (int32_t)0xBFC00000;
+#ifndef CONFIG_USER_ONLY
+    mips_cpu_mmu_init(env, env->cpu_model);
+#endif
+    mips_cpu_fpu_init(env, env->cpu_model);
+    mips_cpu_mvp_init(env, env->cpu_model);
 
     cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {

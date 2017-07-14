@@ -851,7 +851,7 @@ static void r4k_mmu_init (CPUMIPSState *env, const mips_def_t *def)
     env->tlb->helper_tlbinvf = r4k_helper_tlbinvf;
 }
 
-static void mmu_init (CPUMIPSState *env, const mips_def_t *def)
+void mips_cpu_mmu_init(CPUMIPSState *env, const mips_def_t *def)
 {
     MIPSCPU *cpu = mips_env_get_cpu(env);
 
@@ -876,7 +876,7 @@ static void mmu_init (CPUMIPSState *env, const mips_def_t *def)
 }
 #endif /* CONFIG_USER_ONLY */
 
-static void fpu_init (CPUMIPSState *env, const mips_def_t *def)
+void mips_cpu_fpu_init(CPUMIPSState *env, const mips_def_t *def)
 {
     int i;
 
@@ -886,7 +886,7 @@ static void fpu_init (CPUMIPSState *env, const mips_def_t *def)
     memcpy(&env->active_fpu, &env->fpus[0], sizeof(env->active_fpu));
 }
 
-static void mvp_init (CPUMIPSState *env, const mips_def_t *def)
+void mips_cpu_mvp_init(CPUMIPSState *env, const mips_def_t *def)
 {
     env->mvp = g_malloc0(sizeof(CPUMIPSMVPContext));
 
