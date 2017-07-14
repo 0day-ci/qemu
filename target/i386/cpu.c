@@ -17,7 +17,6 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
-#include "qemu/cutils.h"
 
 #include "cpu.h"
 #include "exec/exec-all.h"
@@ -1970,13 +1969,6 @@ static PropertyInfo qdev_prop_spinlocks = {
 /* Convert all '_' in a feature string option name to '-', to make feature
  * name conform to QOM property naming rule, which uses '-' instead of '_'.
  */
-static inline void feat2prop(char *s)
-{
-    while ((s = strchr(s, '_'))) {
-        *s = '-';
-    }
-}
-
 /* Return the feature property name for a feature flag bit */
 static const char *x86_cpu_feature_name(FeatureWord w, int bitnr)
 {
@@ -2005,100 +1997,11 @@ static const char *x86_cpu_feature_name(FeatureWord w, int bitnr)
  */
 static GList *plus_features, *minus_features;
 
-static gint compare_string(gconstpointer a, gconstpointer b)
-{
-    return g_strcmp0(a, b);
-}
-
-/* Parse "+feature,-feature,feature=foo" CPU feature string
- */
 static void x86_cpu_parse_featurestr(const char *typename, char *features,
                                      Error **errp)
 {
-    char *featurestr; /* Single 'key=value" string being parsed */
-    static bool cpu_globals_initialized;
-    bool ambiguous = false;
-
-    if (cpu_globals_initialized) {
-        return;
-    }
-    cpu_globals_initialized = true;
-
-    if (!features) {
-        return;
-    }
-
-    for (featurestr = strtok(features, ",");
-         featurestr;
-         featurestr = strtok(NULL, ",")) {
-        const char *name;
-        const char *val = NULL;
-        char *eq = NULL;
-        char num[32];
-        GlobalProperty *prop;
-
-        /* Compatibility syntax: */
-        if (featurestr[0] == '+') {
-            plus_features = g_list_append(plus_features,
-                                          g_strdup(featurestr + 1));
-            continue;
-        } else if (featurestr[0] == '-') {
-            minus_features = g_list_append(minus_features,
-                                           g_strdup(featurestr + 1));
-            continue;
-        }
-
-        eq = strchr(featurestr, '=');
-        if (eq) {
-            *eq++ = 0;
-            val = eq;
-        } else {
-            val = "on";
-        }
-
-        feat2prop(featurestr);
-        name = featurestr;
-
-        if (g_list_find_custom(plus_features, name, compare_string)) {
-            error_report("warning: Ambiguous CPU model string. "
-                         "Don't mix both \"+%s\" and \"%s=%s\"",
-                         name, name, val);
-            ambiguous = true;
-        }
-        if (g_list_find_custom(minus_features, name, compare_string)) {
-            error_report("warning: Ambiguous CPU model string. "
-                         "Don't mix both \"-%s\" and \"%s=%s\"",
-                         name, name, val);
-            ambiguous = true;
-        }
-
-        /* Special case: */
-        if (!strcmp(name, "tsc-freq")) {
-            int ret;
-            uint64_t tsc_freq;
-
-            ret = qemu_strtosz_metric(val, NULL, &tsc_freq);
-            if (ret < 0 || tsc_freq > INT64_MAX) {
-                error_setg(errp, "bad numerical value %s", val);
-                return;
-            }
-            snprintf(num, sizeof(num), "%" PRId64, tsc_freq);
-            val = num;
-            name = "tsc-frequency";
-        }
-
-        prop = g_new0(typeof(*prop), 1);
-        prop->driver = typename;
-        prop->property = g_strdup(name);
-        prop->value = g_strdup(val);
-        prop->errp = &error_fatal;
-        qdev_prop_register_global(prop);
-    }
-
-    if (ambiguous) {
-        error_report("warning: Compatibility of ambiguous CPU model "
-                     "strings won't be kept on future QEMU versions");
-    }
+    cpu_legacy_parse_featurestr(typename, features,
+        &plus_features, &minus_features, errp);
 }
 
 static void x86_cpu_expand_features(X86CPU *cpu, Error **errp);
@@ -3370,8 +3273,6 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
 {
     CPUX86State *env = &cpu->env;
     FeatureWord w;
-    GList *l;
-    Error *local_err = NULL;
 
     /*TODO: Now cpu->max_features doesn't overwrite features
      * set using QOM properties, and we can convert
@@ -3389,20 +3290,12 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         }
     }
 
-    for (l = plus_features; l; l = l->next) {
-        const char *prop = l->data;
-        object_property_set_bool(OBJECT(cpu), true, prop, &local_err);
-        if (local_err) {
-            goto out;
-        }
+    if (cpu_legacy_apply_features(OBJECT(cpu), plus_features, true, errp)) {
+        return;
     }
 
-    for (l = minus_features; l; l = l->next) {
-        const char *prop = l->data;
-        object_property_set_bool(OBJECT(cpu), false, prop, &local_err);
-        if (local_err) {
-            goto out;
-        }
+    if (cpu_legacy_apply_features(OBJECT(cpu), minus_features, false, errp)) {
+        return;
     }
 
     if (!kvm_enabled() || !cpu->expose_kvm) {
@@ -3439,11 +3332,6 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
     }
     if (env->cpuid_xlevel2 == UINT32_MAX) {
         env->cpuid_xlevel2 = env->cpuid_min_xlevel2;
-    }
-
-out:
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
     }
 }
 

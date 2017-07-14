@@ -1039,4 +1039,10 @@ extern const struct VMStateDescription vmstate_cpu_common;
 
 #define UNASSIGNED_CPU_INDEX -1
 
+int cpu_legacy_apply_features(Object *obj, GList *features, bool enable,
+                              Error **errp);
+
+void cpu_legacy_parse_featurestr(const char *typename, char *features,
+                                 GList **plus_features, GList **minus_features,
+                                 Error **errp);
 #endif
