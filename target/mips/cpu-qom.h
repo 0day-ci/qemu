@@ -35,6 +35,7 @@
 #define MIPS_CPU_GET_CLASS(obj) \
     OBJECT_GET_CLASS(MIPSCPUClass, (obj), TYPE_MIPS_CPU)
 
+typedef struct mips_def_t mips_def_t;
 /**
  * MIPSCPUClass:
  * @parent_realize: The parent class' realize handler.
@@ -49,6 +50,7 @@ typedef struct MIPSCPUClass {
 
     DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
+    const mips_def_t *cpu_def;
 } MIPSCPUClass;
 
 typedef struct MIPSCPU MIPSCPU;
