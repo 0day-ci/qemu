@@ -1988,6 +1988,13 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "                use 'txkey=0x01234' to specify a txkey\n"
     "                use 'sequence=on' to add frame sequence to each packet\n"
     "                use 'pinsequence=on' to work around broken sequence handling in peer\n"
+    "-netdev raw,id=str,ifname=ifname\n"
+    "                configure a network backend with ID 'str' connected to\n"
+    "                an Ethernet interface named ifname via raw socket.\n"
+    "                This backend does not change the interface settings.\n"
+    "                Most interfaces will require being set into promisc mode,\n"
+    "                as well having most offloads (TSO, etc) turned off.\n"
+    "                Some virtual interfaces like tap support only RX.\n"
 #endif
     "-netdev socket,id=str[,fd=h][,listen=[host]:port][,connect=host:port]\n"
     "                configure a network backend to connect to another network\n"
@@ -2460,6 +2467,32 @@ brctl addif br-lan gt0
 
 qemu-system-i386 linux.img -net nic -net gre,src=4.2.3.1,dst=1.2.3.4
 
+
+@end example
+
+@item -netdev raw,id=@var{id},ifname=@var{ifname}
+@itemx -net raw[,vlan=@var{n}][,name=@var{name}],ifname=@var{ifname}
+Connect VLAN @var{n} directly to an Ethernet interface using raw socket.
+
+This transport allows a VM to bypass most of the network stack which is
+extremely useful for tapping.
+
+@item ifname=@var{ifname}
+    interface name (mandatory)
+
+@example
+# set up the interface - put it in promiscuous mode and turn off offloads
+ifconfig eth0 up
+ifconfig eth0 promisc
+
+/sbin/ethtool -K eth0 gro off
+/sbin/ethtool -K eth0 tso off
+/sbin/ethtool -K eth0 gso off
+/sbin/ethtool -K eth0 tx off
+
+# launch QEMU instance - if your network has reorder or is very lossy add ,pincounter
+
+qemu-system-i386 linux.img -net nic -net raw,ifname=eth0
 
 @end example
 

@@ -962,6 +962,7 @@ static int (* const net_client_init_fun[NET_CLIENT_DRIVER__MAX])(
 #ifdef CONFIG_UNIFIED
         [NET_CLIENT_DRIVER_L2TPV3] = net_init_l2tpv3,
         [NET_CLIENT_DRIVER_GRE] = net_init_gre,
+        [NET_CLIENT_DRIVER_RAW] = net_init_raw,
 #endif
 };
 
@@ -1016,6 +1017,10 @@ static int net_client_init1(const void *object, bool is_netdev, Error **errp)
         case NET_LEGACY_OPTIONS_TYPE_GRE:
             legacy.type = NET_CLIENT_DRIVER_GRE;
             legacy.u.gre = opts->u.gre;
+            break;
+        case NET_LEGACY_OPTIONS_TYPE_RAW:
+            legacy.type = NET_CLIENT_DRIVER_RAW;
+            legacy.u.raw = opts->u.raw;
             break;
         case NET_LEGACY_OPTIONS_TYPE_SOCKET:
             legacy.type = NET_CLIENT_DRIVER_SOCKET;
