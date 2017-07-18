@@ -1784,7 +1784,7 @@ static int htab_save_iterate(QEMUFile *f, void *opaque)
     /* Iteration header */
     if (!spapr->htab_shift) {
         qemu_put_be32(f, -1);
-        return 0;
+        return 1;
     } else {
         qemu_put_be32(f, 0);
     }
@@ -1823,7 +1823,7 @@ static int htab_save_complete(QEMUFile *f, void *opaque)
     /* Iteration header */
     if (!spapr->htab_shift) {
         qemu_put_be32(f, -1);
-        return 0;
+        return 1;
     } else {
         qemu_put_be32(f, 0);
     }
