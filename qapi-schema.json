@@ -3855,7 +3855,41 @@
     'txsession':    'uint32',
     '*rxsession':   'uint32',
     '*offset':      'uint32' } }
-
+##
+# @NetdevGREOptions:
+#
+# Connect the VLAN to Ethernet over Ethernet over GRE (GRETAP) tunnel
+#
+# @src: source address
+#
+# @dst: destination address
+#
+# @ipv6: force the use of ipv6
+#
+# @sequence: have sequence counter
+#
+# @pinsequence: pin sequence counter to zero -
+#              workaround for buggy implementations or
+#              networks with packet reorder
+#
+# @txkey: 32 bit transmit key
+#
+# @rxkey: 32 bit receive key
+#
+# Note - gre checksums are not supported at present
+#
+#
+# Since 2.9
+##
+{ 'struct': 'NetdevGREOptions',
+  'data': {
+    'src':          'str',
+    'dst':          'str',
+    '*ipv6':        'bool',
+    '*sequence':     'bool',
+    '*pinsequence':  'bool',
+    '*txkey':    'uint32',
+    '*rxkey':    'uint32' } }
 ##
 # @NetdevVdeOptions:
 #
@@ -3974,7 +4008,7 @@
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde', 'dump',
-            'bridge', 'hubport', 'netmap', 'vhost-user' ] }
+            'bridge', 'hubport', 'netmap', 'vhost-user', 'gre' ] }
 
 ##
 # @Netdev:
@@ -4004,7 +4038,8 @@
     'bridge':   'NetdevBridgeOptions',
     'hubport':  'NetdevHubPortOptions',
     'netmap':   'NetdevNetmapOptions',
-    'vhost-user': 'NetdevVhostUserOptions' } }
+    'vhost-user': 'NetdevVhostUserOptions',
+    'gre':      'NetdevGREOptions' } }
 
 ##
 # @NetLegacy:
@@ -4035,7 +4070,7 @@
 ##
 { 'enum': 'NetLegacyOptionsType',
   'data': ['none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde',
-           'dump', 'bridge', 'netmap', 'vhost-user'] }
+           'dump', 'bridge', 'netmap', 'vhost-user', 'gre'] }
 
 ##
 # @NetLegacyOptions:
@@ -4058,7 +4093,8 @@
     'dump':     'NetdevDumpOptions',
     'bridge':   'NetdevBridgeOptions',
     'netmap':   'NetdevNetmapOptions',
-    'vhost-user': 'NetdevVhostUserOptions' } }
+    'vhost-user': 'NetdevVhostUserOptions',
+    'gre':      'NetdevGREOptions' } }
 
 ##
 # @NetFilterDirection:
