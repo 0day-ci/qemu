@@ -3849,6 +3849,18 @@
     '*offset':      'uint32' } }
 
 ##
+# @NetdevUdstOptions:
+#
+# Common Datagram backend for unified datagram
+# socket transports
+# Should not be instantiated directly
+
+# Since: 2.11
+##
+{ 'struct': 'NetdevUdstOptions',
+  'data': { } }
+
+##
 # @NetdevVdeOptions:
 #
 # Connect the VLAN to a vde switch running on the host.
@@ -3966,7 +3978,7 @@
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde', 'dump',
-            'bridge', 'hubport', 'netmap', 'vhost-user' ] }
+            'bridge', 'hubport', 'netmap', 'vhost-user', 'udst' ] }
 
 ##
 # @Netdev:
@@ -3980,6 +3992,8 @@
 # Since: 1.2
 #
 # 'l2tpv3' - since 2.1
+#
+# 'udst' - since 2.11
 ##
 { 'union': 'Netdev',
   'base': { 'id': 'str', 'type': 'NetClientDriver' },
@@ -3996,7 +4010,8 @@
     'bridge':   'NetdevBridgeOptions',
     'hubport':  'NetdevHubPortOptions',
     'netmap':   'NetdevNetmapOptions',
-    'vhost-user': 'NetdevVhostUserOptions' } }
+    'vhost-user': 'NetdevVhostUserOptions',
+    'udst':     'NetdevUdstOptions' } }
 
 ##
 # @NetLegacy:

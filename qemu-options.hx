@@ -1945,7 +1945,7 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "                connected to a bridge (default=" DEFAULT_BRIDGE_INTERFACE ")\n"
     "                using the program 'helper (default=" DEFAULT_BRIDGE_HELPER ")\n"
 #endif
-#ifdef __linux__
+#ifdef CONFIG_UDST
     "-netdev l2tpv3,id=str,src=srcaddr,dst=dstaddr[,srcport=srcport][,dstport=dstport]\n"
     "         [,rxsession=rxsession],txsession=txsession[,ipv6=on/off][,udp=on/off]\n"
     "         [,cookie64=on/off][,counter][,pincounter][,txcookie=txcookie]\n"

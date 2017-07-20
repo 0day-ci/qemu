@@ -1862,7 +1862,9 @@ if ! compile_object -Werror ; then
 fi
 
 ##########################################
-# L2TPV3 probe
+# UDST probe
+# identical to L2TPv3 probe used for both
+# during migration of L2TPv3 to udst backend
 
 cat > $TMPC <<EOF
 #include <sys/socket.h>
@@ -1870,9 +1872,9 @@ cat > $TMPC <<EOF
 int main(void) { return sizeof(struct mmsghdr); }
 EOF
 if compile_prog "" "" ; then
-  l2tpv3=yes
+  udst=yes
 else
-  l2tpv3=no
+  udst=no
 fi
 
 ##########################################
@@ -5458,8 +5460,8 @@ fi
 if test "$netmap" = "yes" ; then
   echo "CONFIG_NETMAP=y" >> $config_host_mak
 fi
-if test "$l2tpv3" = "yes" ; then
-  echo "CONFIG_L2TPV3=y" >> $config_host_mak
+if test "$udst" = "yes" ; then
+  echo "CONFIG_UDST=y" >> $config_host_mak
 fi
 if test "$cap_ng" = "yes" ; then
   echo "CONFIG_LIBCAP=y" >> $config_host_mak
