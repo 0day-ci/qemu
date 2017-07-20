@@ -1947,8 +1947,8 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
 #endif
 #ifdef CONFIG_UDST
     "-netdev l2tpv3,id=str,src=srcaddr,dst=dstaddr[,srcport=srcport][,dstport=dstport]\n"
-    "         [,rxsession=rxsession],txsession=txsession[,ipv6=on/off][,udp=on/off]\n"
-    "         [,cookie64=on/off][,counter][,pincounter][,txcookie=txcookie]\n"
+    "         [,rxsession=rxsession],txsession=txsession[,ipv6=on/off][,ipv4=on/off]\n"
+    "         [,udp=on/off][,cookie64=on/off][,counter][,pincounter][,txcookie=txcookie]\n"
     "         [,rxcookie=rxcookie][,offset=offset]\n"
     "                configure a network backend with ID 'str' connected to\n"
     "                an Ethernet over L2TPv3 pseudowire.\n"
@@ -1963,6 +1963,7 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "                use 'srcport=' to specify source udp port\n"
     "                use 'dstport=' to specify destination udp port\n"
     "                use 'ipv6=on' to force v6\n"
+    "                use 'ipv4=on' to force v4\n"
     "                L2TPv3 uses cookies to prevent misconfiguration as\n"
     "                well as a weak security measure\n"
     "                use 'rxcookie=0x012345678' to specify a rxcookie\n"
@@ -2345,8 +2346,8 @@ qemu-system-i386 linux.img \
                  -net socket,mcast=239.192.168.1:1102,localaddr=1.2.3.4
 @end example
 
-@item -netdev l2tpv3,id=@var{id},src=@var{srcaddr},dst=@var{dstaddr}[,srcport=@var{srcport}][,dstport=@var{dstport}],txsession=@var{txsession}[,rxsession=@var{rxsession}][,ipv6][,udp][,cookie64][,counter][,pincounter][,txcookie=@var{txcookie}][,rxcookie=@var{rxcookie}][,offset=@var{offset}]
-@itemx -net l2tpv3[,vlan=@var{n}][,name=@var{name}],src=@var{srcaddr},dst=@var{dstaddr}[,srcport=@var{srcport}][,dstport=@var{dstport}],txsession=@var{txsession}[,rxsession=@var{rxsession}][,ipv6][,udp][,cookie64][,counter][,pincounter][,txcookie=@var{txcookie}][,rxcookie=@var{rxcookie}][,offset=@var{offset}]
+@item -netdev l2tpv3,id=@var{id},src=@var{srcaddr},dst=@var{dstaddr}[,srcport=@var{srcport}][,dstport=@var{dstport}],txsession=@var{txsession}[,rxsession=@var{rxsession}][,ipv6][,ipv4][,udp][,cookie64][,counter][,pincounter][,txcookie=@var{txcookie}][,rxcookie=@var{rxcookie}][,offset=@var{offset}]
+@itemx -net l2tpv3[,vlan=@var{n}][,name=@var{name}],src=@var{srcaddr},dst=@var{dstaddr}[,srcport=@var{srcport}][,dstport=@var{dstport}],txsession=@var{txsession}[,rxsession=@var{rxsession}][,ipv6][,ipv4][,udp][,cookie64][,counter][,pincounter][,txcookie=@var{txcookie}][,rxcookie=@var{rxcookie}][,offset=@var{offset}]
 Connect VLAN @var{n} to L2TPv3 pseudowire. L2TPv3 (RFC3391) is a popular
 protocol to transport Ethernet (and other Layer 2) data frames between
 two systems. It is present in routers, firewalls and the Linux kernel
