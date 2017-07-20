@@ -3899,6 +3899,21 @@
   'data': { } }
 
 ##
+# @NetdevRawOptions:
+#
+# Connect the VLAN to an network interface using raw sockets
+#
+# @ifname: network interface name
+#
+
+# Since 2.9
+##
+{ 'struct': 'NetdevRawOptions',
+  'data': {
+    'ifname':          'str'
+} }
+
+##
 # @NetdevVdeOptions:
 #
 # Connect the VLAN to a vde switch running on the host.
@@ -4020,7 +4035,7 @@
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde', 'dump',
-            'bridge', 'hubport', 'netmap', 'vhost-user', 'udst', 'gre' ] }
+            'bridge', 'hubport', 'netmap', 'vhost-user', 'udst', 'gre', 'raw' ] }
 
 ##
 # @Netdev:
@@ -4056,7 +4071,8 @@
     'netmap':   'NetdevNetmapOptions',
     'vhost-user': 'NetdevVhostUserOptions',
     'udst':     'NetdevUdstOptions',
-    'gre':      'NetdevGREOptions' } }
+    'gre':      'NetdevGREOptions',
+    'raw':      'NetdevRawOptions' } }
 
 ##
 # @NetLegacy:
