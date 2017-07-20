@@ -1972,6 +1972,24 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "                use 'counter=off' to force a 'cut-down' L2TPv3 with no counter\n"
     "                use 'pincounter=on' to work around broken counter handling in peer\n"
     "                use 'offset=X' to add an extra offset between header and data\n"
+    "-netdev gre,id=str,src=srcaddr,dst=dstaddr[,rxkey=rxkey],txkey=txkey[,ipv6=on/off]\n"
+    "         [,ipv4=on/off][,sequence][,pinsequence]\n"
+    "                configure a network backend with ID 'str' connected to\n"
+    "                an Ethernet over GRE pseudowire (aka GRE TAP).\n"
+    "                Linux kernel 3.3+ as well as most routers and some switches\n"
+    "                can talk GRETAP. This transport allows connecting a VM to a VM,\n"
+    "                VM to a router and even VM to Host. It is a nearly-universal\n"
+    "                standard (RFC1701).\n"
+    "                use 'src=' to specify source address\n"
+    "                use 'dst=' to specify destination address\n"
+    "                use 'ipv4=on' to force v4\n"
+    "                use 'ipv6=on' to force v6\n"
+    "                GRE may use keys to prevent misconfiguration as\n"
+    "                well as a weak security measure\n"
+    "                use 'rxkey=0x01234' to specify a rxkey\n"
+    "                use 'txkey=0x01234' to specify a txkey\n"
+    "                use 'sequence=on' to add frame sequence to each packet\n"
+    "                use 'pinsequence=on' to work around broken sequence handling in peer\n"
 #endif
     "-netdev socket,id=str[,fd=h][,listen=[host]:port][,connect=host:port]\n"
     "                configure a network backend to connect to another network\n"
@@ -2395,12 +2413,53 @@ ip l2tp add session tunnel_id 1 name vmtunnel0 session_id \
 ifconfig vmtunnel0 mtu 1500
 ifconfig vmtunnel0 up
 brctl addif br-lan vmtunnel0
+@end example
+
+Alternatively, it is possible to assign an IP address to vmtunnel0, which allows
+the VM to connect to the host directly without using Linux bridging.
+
+
+@item -netdev gre,id=@var{id},src=@var{srcaddr},dst=@var{dstaddr}[,ipv4][,ipv6][,sequence][,pinsequence][,txkey=@var{txkey}][,rxkey=@var{rxkey}]
+Connect VLAN @var{n} to a GRE pseudowire. GRE (RFC1701) is a popular
+protocol to transport various data frames between two systems.
+We are interested in a specific GRE variety where the transported
+frames are Ethernet. This GRE type is usually referred to as GRETAP.
+It is present in routers, firewalls, switches and the Linux kernel
+(from version 3.3 onwards).
+
+This transport allows a VM to communicate to another VM, router or firewall directly.
+
+@item src=@var{srcaddr}
+    source address (mandatory)
+@item dst=@var{dstaddr}
+    destination address (mandatory)
+@item ipv6
+    force v6, otherwise defaults to v4.
+@item rxkey=@var{rxkey}
+@itemx txkey=@var{txkey}
+    Keys are a weak form of security in the gre specification.
+Their function is mostly to prevent misconfiguration.
+@item sequence=on
+    Add frame sequence to GRE frames
+@item pinsequence=on
+    Work around broken sequence handling in peer. This may also help on
+networks which have packet reorder.
+
+For example, to attach a VM running on host 4.3.2.1 via GRETAP to the bridge br-lan
+on the remote Linux host 1.2.3.4:
+@example
+# Setup tunnel on linux host using raw ip as encapsulation
+# on 1.2.3.4
+ip link add gt0 type gretap local 1.2.3.4 remote 4.3.2.1
+ifconfig gt0 mtu 1500
+ifconfig gt0 up
+brctl addif br-lan gt0
 
 
 # on 4.3.2.1
 # launch QEMU instance - if your network has reorder or is very lossy add ,pincounter
 
-qemu-system-i386 linux.img -net nic -net l2tpv3,src=4.2.3.1,dst=1.2.3.4,udp,srcport=16384,dstport=16384,rxsession=0xffffffff,txsession=0xffffffff,counter
+qemu-system-i386 linux.img -device virtio-net-pci,netdev=gre0 -netdev gre,id=gre0,src=4.2.3.1,dst=1.2.3.4
 
 
 @end example
