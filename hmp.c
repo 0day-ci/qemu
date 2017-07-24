@@ -1066,7 +1066,7 @@ void hmp_cpu(Monitor *mon, const QDict *qdict)
 
 void hmp_memsave(Monitor *mon, const QDict *qdict)
 {
-    uint32_t size = qdict_get_int(qdict, "size");
+    int64_t size = qdict_get_int(qdict, "size");
     const char *filename = qdict_get_str(qdict, "filename");
     uint64_t addr = qdict_get_int(qdict, "val");
     Error *err = NULL;
@@ -1076,6 +1076,10 @@ void hmp_memsave(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "No CPU available\n");
         return;
     }
+    if (size <= 0) {
+        monitor_printf(mon, "Invalid size\n");
+        return;
+    }
 
     qmp_memsave(addr, size, filename, true, cpu_index, &err);
     hmp_handle_error(mon, &err);
@@ -1083,10 +1087,15 @@ void hmp_memsave(Monitor *mon, const QDict *qdict)
 
 void hmp_pmemsave(Monitor *mon, const QDict *qdict)
 {
-    uint32_t size = qdict_get_int(qdict, "size");
+    int64_t size = qdict_get_int(qdict, "size");
     const char *filename = qdict_get_str(qdict, "filename");
     uint64_t addr = qdict_get_int(qdict, "val");
     Error *err = NULL;
+
+    if (size <= 0) {
+        monitor_printf(mon, "Invalid size\n");
+        return;
+    }
 
     qmp_pmemsave(addr, size, filename, &err);
     hmp_handle_error(mon, &err);
