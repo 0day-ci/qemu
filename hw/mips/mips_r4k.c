@@ -31,6 +31,7 @@
 #include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
+#include "qemu/error-report.h"
 
 #define MAX_IDE_BUS 2
 
@@ -251,9 +252,9 @@ void mips_r4k_init(MachineState *machine)
             fprintf(stderr, "qemu: Error registering flash memory.\n");
 	}
     } else if (!qtest_enabled()) {
-	/* not fatal */
-        fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
-		bios_name);
+        /* not fatal */
+        warn_report("could not load MIPS bios '%s'",
+                    bios_name);
     }
     g_free(filename);
 
