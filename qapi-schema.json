@@ -4758,6 +4758,10 @@
 # @hiragana: since 2.9
 # @henkan: since 2.9
 # @yen: since 2.9
+# @f16: since 2.10
+# @f17: since 2.10
+# @f18: since 2.10
+# @f19: since 2.10
 #
 # Since: 1.3.0
 #
@@ -4780,7 +4784,7 @@
             'props', 'undo', 'front', 'copy', 'open', 'paste', 'find', 'cut',
             'lf', 'help', 'meta_l', 'meta_r', 'compose', 'pause',
             'ro', 'hiragana', 'henkan', 'yen',
-            'kp_comma', 'kp_equals', 'power' ] }
+            'kp_comma', 'kp_equals', 'power', 'f16', 'f17', 'f18', 'f19'] }
 
 ##
 # @KeyValue:

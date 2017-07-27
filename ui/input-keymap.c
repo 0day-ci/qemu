@@ -114,6 +114,10 @@ static const int qcode_to_number[] = {
 
     [Q_KEY_CODE_F11] = 0x57,
     [Q_KEY_CODE_F12] = 0x58,
+    [Q_KEY_CODE_F16] = 0x59,
+    [Q_KEY_CODE_F17] = 0x5a,
+    [Q_KEY_CODE_F18] = 0x5b,
+    [Q_KEY_CODE_F19] = 0x5c,
 
     [Q_KEY_CODE_PRINT] = 0xb7,
 
