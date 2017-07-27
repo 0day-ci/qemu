@@ -225,6 +225,10 @@ const int mac_to_qkeycode_map[] = {
     [kVK_F13] = Q_KEY_CODE_PRINT,
     [kVK_F14] = Q_KEY_CODE_SCROLL_LOCK,
     [kVK_F15] = Q_KEY_CODE_PAUSE,
+    [kVK_F16] = Q_KEY_CODE_F16,
+    [kVK_F17] = Q_KEY_CODE_F17,
+    [kVK_F18] = Q_KEY_CODE_F18,
+    [kVK_F19] = Q_KEY_CODE_F19
 
     /*
      * The eject and volume keys can't be used here because they are handled at
