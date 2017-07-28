@@ -2876,3 +2876,19 @@ void hmp_info_vm_generation_id(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &err);
     qapi_free_GuidInfo(info);
 }
+
+void hmp_info_memory_size_summary(Monitor *mon, const QDict *qdict)
+{
+    MemoryInfo *info = qmp_query_memory_size_summary(&error_abort);
+    if (info) {
+        monitor_printf(mon, "base memory: %" PRIu64 "\n",
+                       info->base_memory);
+
+        if (info->has_hotunpluggable_memory) {
+            monitor_printf(mon, "hotunpluggable memory: %" PRIu64 "\n",
+                           info->hotunpluggable_memory);
+        }
+
+        qapi_free_MemoryInfo(info);
+    }
+}

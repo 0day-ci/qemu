@@ -716,7 +716,8 @@ MemoryInfo *qmp_query_memory_size_summary(Error **errp)
 
     mem_info->base_memory = ram_size;
 
-    mem_info->hotunpluggable_memory = get_existing_hotpluggable_memory_size();
+    mem_info->hotunpluggable_memory =
+        get_existing_hotunpluggable_memory_size();
     mem_info->has_hotunpluggable_memory =
         (mem_info->hotunpluggable_memory != (uint64_t)-1);
 

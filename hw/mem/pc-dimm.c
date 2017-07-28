@@ -159,7 +159,7 @@ uint64_t pc_existing_dimms_capacity(Error **errp)
     return cap.size;
 }
 
-uint64_t get_existing_hotpluggable_memory_size(void)
+uint64_t get_existing_hotunpluggable_memory_size(void)
 {
     return pc_existing_dimms_capacity(&error_abort);
 }
