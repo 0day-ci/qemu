@@ -4324,6 +4324,31 @@
             '*unavailable-features': [ 'str' ], 'typename': 'str' } }
 
 ##
+# @MemoryInfo:
+#
+# Actual memory information in bytes.
+#
+# @base-memory: size of "base" memory specified with command line
+#               option -m.
+#
+# @hotunpluggable-memory: size memory that can be hot-unplugged.
+#
+# Since: 2.10.0
+##
+{ 'struct': 'MemoryInfo',
+  'data'  : { 'base-memory': 'size', '*hotunpluggable-memory': 'size' } }
+
+##
+# @query-memory-size-summary:
+#
+# Return the amount of initially allocated and hot-plugged (if
+# enabled) memory in bytes.
+#
+# Since: 2.10.0
+##
+{ 'command': 'query-memory-size-summary', 'returns': 'MemoryInfo' }
+
+##
 # @query-cpu-definitions:
 #
 # Return a list of supported virtual CPU definitions
