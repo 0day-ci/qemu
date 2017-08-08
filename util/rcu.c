@@ -299,15 +299,17 @@ void rcu_unregister_thread(void)
     qemu_mutex_unlock(&rcu_registry_lock);
 }
 
-static void rcu_init_complete(void)
+static void rcu_init_globals(void)
 {
-    QemuThread thread;
-
     qemu_mutex_init(&rcu_registry_lock);
     qemu_mutex_init(&rcu_sync_lock);
     qemu_event_init(&rcu_gp_event, true);
-
     qemu_event_init(&rcu_call_ready_event, false);
+}
+
+static void rcu_init_complete(void)
+{
+    QemuThread thread;
 
     /* The caller is assumed to have iothread lock, so the call_rcu thread
      * must have been quiescent even after forking, just recreate it.
@@ -357,6 +359,13 @@ static void rcu_init_child(void)
         return;
     }
 
+    rcu_init_unlock();
+
+    /*
+     * For the newly forked child, we need something extra: since
+     * after fork the threads are all gone, we need to re-init the RCU
+     * thread, along with the globals.
+     */
     memset(&registry, 0, sizeof(registry));
     rcu_init_complete();
 }
@@ -367,5 +376,6 @@ static void __attribute__((__constructor__)) rcu_init(void)
 #ifdef CONFIG_POSIX
     pthread_atfork(rcu_init_lock, rcu_init_unlock, rcu_init_child);
 #endif
+    rcu_init_globals();
     rcu_init_complete();
 }
