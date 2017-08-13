@@ -203,6 +203,10 @@ $(call set-vpath, $(SRC_PATH))
 
 LIBS+=-lz $(LIBS_TOOLS)
 
+ifndef CONFIG_WIN32
+LIBS_QGA+=-ludev
+endif
+
 HELPERS-$(CONFIG_LINUX) = qemu-bridge-helper$(EXESUF)
 
 ifdef BUILD_DOCS
