@@ -354,3 +354,63 @@ void ga_channel_free(GAChannel *c)
     g_free(c->rstate.buf);
     g_free(c);
 }
+
+static bool is_serial_present(GAChannelMethod method, const gchar *path,
+    DWORD *err)
+{
+    gchar newpath[MAXPATHLEN] = { 0 };
+    bool ret = false;
+
+    assert(err);
+
+    if (method != GA_CHANNEL_VIRTIO_SERIAL && method != GA_CHANNEL_ISA_SERIAL) {
+        g_critical("unsupported communication method");
+        return false;
+    }
+
+    if (method == GA_CHANNEL_ISA_SERIAL) {
+        snprintf(newpath, sizeof(newpath), "\\\\.\\%s", path);
+    } else {
+        g_strlcpy(newpath, path, sizeof(newpath));
+    }
+
+    HANDLE handle = CreateFile(newpath, GENERIC_READ | GENERIC_WRITE, 0, NULL,
+        OPEN_EXISTING,
+        FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED, NULL);
+
+    if (handle == INVALID_HANDLE_VALUE) {
+        *err = GetLastError();
+        ret = false;
+    } else {
+        ret = true;
+    }
+
+    CloseHandle(handle);
+    return ret;
+}
+
+bool ga_channel_serial_is_present(GAChannelMethod method, const gchar *path)
+{
+    DWORD err_code;
+    return is_serial_present(method, path, &err_code) ||
+        err_code == ERROR_ACCESS_DENIED;
+}
+
+bool ga_channel_was_serial_attached(GAChannelMethod method, const gchar *path,
+    bool is_serial_attached)
+{
+    DWORD err_code;
+    return !is_serial_attached && is_serial_present(method, path, &err_code);
+}
+
+bool ga_channel_was_serial_detached(GAChannelMethod method, const gchar *path,
+    bool is_serial_attached)
+{
+    DWORD err_code = NO_ERROR;
+        /* In order to make sure the serial that qemu-ga uses is the one that
+         * was detached. We'll get the error ERROR_FILE_NOT_FOUND when
+         * attempting to call CreateFile with the serial path.
+        */
+       return is_serial_attached && !is_serial_present(method, path, &err_code)
+           && err_code == ERROR_FILE_NOT_FOUND;
+}

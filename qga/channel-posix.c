@@ -295,3 +295,57 @@ void ga_channel_free(GAChannel *c)
     }
     g_free(c);
 }
+
+static bool is_serial_present(GAChannelMethod method, const gchar *path,
+    int *error_code)
+{
+    int fd = -1;
+    bool ret = true;
+
+    assert(error_code);
+    *error_code = 0;
+
+    switch (method) {
+    case GA_CHANNEL_VIRTIO_SERIAL:
+        fd = qemu_open(path, O_RDWR | O_NONBLOCK
+#ifndef CONFIG_SOLARIS
+            | O_ASYNC
+#endif
+        );
+        break;
+    case GA_CHANNEL_ISA_SERIAL:
+        fd = qemu_open(path, O_RDWR | O_NOCTTY | O_NONBLOCK);
+        break;
+    default:
+        ret = false;
+    }
+    if (fd < 0) {
+        *error_code = errno;
+        ret = false;
+    } else {
+        close(fd);
+    }
+    return ret;
+}
+
+bool ga_channel_serial_is_present(GAChannelMethod method, const gchar *path)
+{
+    int error_code = 0;
+    return is_serial_present(method, path, &error_code) ||
+        error_code == EBUSY;
+}
+
+bool ga_channel_was_serial_attached(GAChannelMethod method, const gchar *path,
+    bool is_serial_attached)
+{
+    int error_code = 0;
+    return !is_serial_attached &&
+        is_serial_present(method, path, &error_code);
+}
+bool ga_channel_was_serial_detached(GAChannelMethod method, const gchar *path,
+    bool is_serial_attached)
+{
+    int error_code = 0;
+    return is_serial_attached && !is_serial_present(method, path, &error_code)
+        && error_code == ENOENT;
+}

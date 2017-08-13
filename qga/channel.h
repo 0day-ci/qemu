@@ -12,6 +12,10 @@
 #ifndef QGA_CHANNEL_H
 #define QGA_CHANNEL_H
 
+#ifndef _WIN32
+#define SUBSYSTEM_VIRTIO_SERIAL "virtio-ports";
+#define SUBSYSTEM_ISA_SERIAL "isa-serial";
+#endif
 
 typedef struct GAChannel GAChannel;
 
@@ -30,5 +34,10 @@ GAChannel *ga_channel_new(GAChannelMethod method, const gchar *path,
 void ga_channel_free(GAChannel *c);
 GIOStatus ga_channel_read(GAChannel *c, gchar *buf, gsize size, gsize *count);
 GIOStatus ga_channel_write_all(GAChannel *c, const gchar *buf, gsize size);
+bool ga_channel_serial_is_present(GAChannelMethod method, const gchar *path);
+bool ga_channel_was_serial_attached(GAChannelMethod method, const gchar *path,
+    bool is_serial_attached);
+bool ga_channel_was_serial_detached(GAChannelMethod method, const gchar *path,
+    bool is_serial_attached);
 
 #endif
