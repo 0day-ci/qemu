@@ -92,7 +92,28 @@ struct GAState {
     GAPersistentState pstate;
 };
 
+typedef struct GAConfig {
+    char *channel_path;
+    char *method;
+    char *log_filepath;
+    char *pid_filepath;
+#ifdef CONFIG_FSFREEZE
+    char *fsfreeze_hook;
+#endif
+    char *state_dir;
+#ifdef _WIN32
+    const char *service;
+#endif
+    gchar *bliststr; /* blacklist may point to this string */
+    GList *blacklist;
+    int daemonize;
+    GLogLevelFlags log_level;
+    int dumpconf;
+} GAConfig;
+
 struct GAState *ga_state;
+struct GAConfig *ga_config;
+int ga_socket_activation;
 QmpCommandList ga_commands;
 
 /* commands that are safe to issue while filesystems are frozen */
@@ -942,25 +963,6 @@ static GList *split_list(const gchar *str, const gchar *delim)
     return list;
 }
 
-typedef struct GAConfig {
-    char *channel_path;
-    char *method;
-    char *log_filepath;
-    char *pid_filepath;
-#ifdef CONFIG_FSFREEZE
-    char *fsfreeze_hook;
-#endif
-    char *state_dir;
-#ifdef _WIN32
-    const char *service;
-#endif
-    gchar *bliststr; /* blacklist may point to this string */
-    GList *blacklist;
-    int daemonize;
-    GLogLevelFlags log_level;
-    int dumpconf;
-} GAConfig;
-
 static void config_load(GAConfig *config)
 {
     GError *gerr = NULL;
@@ -1353,7 +1355,7 @@ int main(int argc, char **argv)
 {
     int ret = EXIT_SUCCESS;
     GAState *s = g_new0(GAState, 1);
-    GAConfig *config = g_new0(GAConfig, 1);
+    GAConfig *config = ga_config = g_new0(GAConfig, 1);
     int socket_activation;
 
     config->log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
@@ -1376,7 +1378,7 @@ int main(int argc, char **argv)
         config->method = g_strdup("virtio-serial");
     }
 
-    socket_activation = check_socket_activation();
+    ga_socket_activation = socket_activation = check_socket_activation();
     if (socket_activation > 1) {
         g_critical("qemu-ga only supports listening on one socket");
         ret = EXIT_FAILURE;
