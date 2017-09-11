@@ -69,5 +69,6 @@ struct sPAPRXive {
 typedef struct sPAPRMachineState sPAPRMachineState;
 
 void spapr_xive_hcall_init(sPAPRMachineState *spapr);
+void spapr_xive_populate(sPAPRXive *xive, void *fdt, uint32_t phandle);
 
 #endif /* PPC_SPAPR_XIVE_H */

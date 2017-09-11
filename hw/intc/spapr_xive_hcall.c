@@ -874,3 +874,57 @@ void spapr_xive_hcall_init(sPAPRMachineState *spapr)
     spapr_register_hypercall(H_INT_SYNC, h_int_sync);
     spapr_register_hypercall(H_INT_RESET, h_int_reset);
 }
+
+void spapr_xive_populate(sPAPRXive *xive, void *fdt, uint32_t phandle)
+{
+    int node;
+    uint64_t timas[2 * 2];
+    uint32_t lisn_ranges[] = {
+        cpu_to_be32(xive->nr_irqs - xive->nr_targets + xive->ics->offset),
+        cpu_to_be32(xive->nr_targets),
+    };
+    uint32_t eq_sizes[] = {
+        cpu_to_be32(12), /* 4K */
+        cpu_to_be32(16), /* 64K */
+        cpu_to_be32(21), /* 2M */
+        cpu_to_be32(24), /* 16M */
+    };
+
+    /* Use some ranges to exercise the Linux driver, which should
+     * result in Linux choosing priority 6. This is not strictly
+     * necessary
+     */
+    uint32_t reserved_priorities[] = {
+        cpu_to_be32(1),  /* start */
+        cpu_to_be32(2),  /* count */
+        cpu_to_be32(7),  /* start */
+        cpu_to_be32(0xf8),  /* count */
+    };
+    int i;
+
+    /* Thread Interrupt Management Areas : User and OS */
+    for (i = 0; i < 2; i++) {
+        timas[i * 2] = cpu_to_be64(xive->tm_base + i * (1 << xive->tm_shift));
+        timas[i * 2 + 1] = cpu_to_be64(1 << xive->tm_shift);
+    }
+
+    _FDT(node = fdt_add_subnode(fdt, 0, "interrupt-controller"));
+
+    _FDT(fdt_setprop_string(fdt, node, "name", "interrupt-controller"));
+    _FDT(fdt_setprop_string(fdt, node, "device_type", "power-ivpe"));
+    _FDT(fdt_setprop(fdt, node, "reg", timas, sizeof(timas)));
+
+    _FDT(fdt_setprop_string(fdt, node, "compatible", "ibm,power-ivpe"));
+    _FDT(fdt_setprop(fdt, node, "ibm,xive-eq-sizes", eq_sizes,
+                     sizeof(eq_sizes)));
+    _FDT(fdt_setprop(fdt, node, "ibm,xive-lisn-ranges", lisn_ranges,
+                     sizeof(lisn_ranges)));
+
+    /* For SLOF */
+    _FDT(fdt_setprop_cell(fdt, node, "linux,phandle", phandle));
+    _FDT(fdt_setprop_cell(fdt, node, "phandle", phandle));
+
+    /* top properties */
+    _FDT(fdt_setprop(fdt, 0, "ibm,plat-res-int-priorities",
+                     reserved_priorities, sizeof(reserved_priorities)));
+}
