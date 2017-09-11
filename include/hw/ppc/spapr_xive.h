@@ -46,6 +46,12 @@ struct sPAPRXive {
     XiveIVE      *ivt;
     XiveEQ       *eqt;
     uint32_t     nr_eqs;
+
+    /* ESB memory region */
+    uint32_t     esb_shift;
+    hwaddr       esb_base;
+    MemoryRegion esb_mr;
+    MemoryRegion esb_iomem;
 };
 
 #endif /* PPC_SPAPR_XIVE_H */

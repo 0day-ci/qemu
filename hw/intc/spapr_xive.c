@@ -33,6 +33,218 @@ static void spapr_xive_irq(sPAPRXive *xive, int srcno)
 }
 
 /*
+ * "magic" Event State Buffer (ESB) MMIO offsets.
+ *
+ * Each interrupt source has a 2-bit state machine called ESB
+ * which can be controlled by MMIO. It's made of 2 bits, P and
+ * Q. P indicates that an interrupt is pending (has been sent
+ * to a queue and is waiting for an EOI). Q indicates that the
+ * interrupt has been triggered while pending.
+ *
+ * This acts as a coalescing mechanism in order to guarantee
+ * that a given interrupt only occurs at most once in a queue.
+ *
+ * When doing an EOI, the Q bit will indicate if the interrupt
+ * needs to be re-triggered.
+ *
+ * The following offsets into the ESB MMIO allow to read or
+ * manipulate the PQ bits. They must be used with an 8-bytes
+ * load instruction. They all return the previous state of the
+ * interrupt (atomically).
+ *
+ * Additionally, some ESB pages support doing an EOI via a
+ * store at 0 and some ESBs support doing a trigger via a
+ * separate trigger page.
+ */
+#define XIVE_ESB_GET            0x800
+#define XIVE_ESB_SET_PQ_00      0xc00
+#define XIVE_ESB_SET_PQ_01      0xd00
+#define XIVE_ESB_SET_PQ_10      0xe00
+#define XIVE_ESB_SET_PQ_11      0xf00
+
+#define XIVE_ESB_VAL_P          0x2
+#define XIVE_ESB_VAL_Q          0x1
+
+#define XIVE_ESB_RESET          0x0
+#define XIVE_ESB_PENDING        XIVE_ESB_VAL_P
+#define XIVE_ESB_QUEUED         (XIVE_ESB_VAL_P | XIVE_ESB_VAL_Q)
+#define XIVE_ESB_OFF            XIVE_ESB_VAL_Q
+
+static uint8_t spapr_xive_pq_get(sPAPRXive *xive, uint32_t idx)
+{
+    uint32_t byte = idx / 4;
+    uint32_t bit  = (idx % 4) * 2;
+
+    assert(byte < xive->sbe_size);
+
+    return (xive->sbe[byte] >> bit) & 0x3;
+}
+
+static uint8_t spapr_xive_pq_set(sPAPRXive *xive, uint32_t idx, uint8_t pq)
+{
+    uint32_t byte = idx / 4;
+    uint32_t bit  = (idx % 4) * 2;
+    uint8_t old, new;
+
+    assert(byte < xive->sbe_size);
+
+    old = xive->sbe[byte];
+
+    new = xive->sbe[byte] & ~(0x3 << bit);
+    new |= (pq & 0x3) << bit;
+
+    xive->sbe[byte] = new;
+
+    return (old >> bit) & 0x3;
+}
+
+static bool spapr_xive_pq_eoi(sPAPRXive *xive, uint32_t srcno)
+{
+    uint8_t old_pq = spapr_xive_pq_get(xive, srcno);
+
+    switch (old_pq) {
+    case XIVE_ESB_RESET:
+        spapr_xive_pq_set(xive, srcno, XIVE_ESB_RESET);
+        return false;
+    case XIVE_ESB_PENDING:
+        spapr_xive_pq_set(xive, srcno, XIVE_ESB_RESET);
+        return false;
+    case XIVE_ESB_QUEUED:
+        spapr_xive_pq_set(xive, srcno, XIVE_ESB_PENDING);
+        return true;
+    case XIVE_ESB_OFF:
+        spapr_xive_pq_set(xive, srcno, XIVE_ESB_OFF);
+        return false;
+    default:
+         g_assert_not_reached();
+    }
+}
+
+static bool spapr_xive_pq_trigger(sPAPRXive *xive, uint32_t srcno)
+{
+    uint8_t old_pq = spapr_xive_pq_get(xive, srcno);
+
+    switch (old_pq) {
+    case XIVE_ESB_RESET:
+        spapr_xive_pq_set(xive, srcno, XIVE_ESB_PENDING);
+        return true;
+    case XIVE_ESB_PENDING:
+        spapr_xive_pq_set(xive, srcno, XIVE_ESB_QUEUED);
+        return true;
+    case XIVE_ESB_QUEUED:
+        spapr_xive_pq_set(xive, srcno, XIVE_ESB_QUEUED);
+        return true;
+    case XIVE_ESB_OFF:
+        spapr_xive_pq_set(xive, srcno, XIVE_ESB_OFF);
+        return false;
+    default:
+         g_assert_not_reached();
+    }
+}
+
+/*
+ * XIVE Interrupt Source MMIOs
+ */
+static void spapr_xive_source_eoi(sPAPRXive *xive, uint32_t srcno)
+{
+    ICSIRQState *irq = &xive->ics->irqs[srcno];
+
+    if (irq->flags & XICS_FLAGS_IRQ_LSI) {
+        irq->status &= ~XICS_STATUS_SENT;
+    }
+}
+
+/* TODO: handle second page
+ *
+ * Some HW use a separate page for trigger. We only support the case
+ * in which the trigger can be done in the same page as the EOI.
+ */
+static uint64_t spapr_xive_esb_read(void *opaque, hwaddr addr, unsigned size)
+{
+    sPAPRXive *xive = SPAPR_XIVE(opaque);
+    uint32_t offset = addr & 0xF00;
+    uint32_t srcno = addr >> xive->esb_shift;
+    XiveIVE *ive;
+    uint64_t ret = -1;
+
+    ive = spapr_xive_get_ive(xive, srcno);
+    if (!ive || !(ive->w & IVE_VALID))  {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid LISN %d\n", srcno);
+        goto out;
+    }
+
+    switch (offset) {
+    case 0:
+        spapr_xive_source_eoi(xive, srcno);
+
+        /* return TRUE or FALSE depending on PQ value */
+        ret = spapr_xive_pq_eoi(xive, srcno);
+        break;
+
+    case XIVE_ESB_GET:
+        ret = spapr_xive_pq_get(xive, srcno);
+        break;
+
+    case XIVE_ESB_SET_PQ_00:
+    case XIVE_ESB_SET_PQ_01:
+    case XIVE_ESB_SET_PQ_10:
+    case XIVE_ESB_SET_PQ_11:
+        ret = spapr_xive_pq_set(xive, srcno, (offset >> 8) & 0x3);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid ESB addr %d\n", offset);
+    }
+
+out:
+    return ret;
+}
+
+static void spapr_xive_esb_write(void *opaque, hwaddr addr,
+                           uint64_t value, unsigned size)
+{
+    sPAPRXive *xive = SPAPR_XIVE(opaque);
+    uint32_t offset = addr & 0xF00;
+    uint32_t srcno = addr >> xive->esb_shift;
+    XiveIVE *ive;
+    bool notify = false;
+
+    ive = spapr_xive_get_ive(xive, srcno);
+    if (!ive || !(ive->w & IVE_VALID))  {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid LISN %d\n", srcno);
+        return;
+    }
+
+    switch (offset) {
+    case 0:
+        /* TODO: should we trigger even if the IVE is masked ? */
+        notify = spapr_xive_pq_trigger(xive, srcno);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid ESB write addr %d\n",
+                      offset);
+        return;
+    }
+
+    if (notify && !(ive->w & IVE_MASKED)) {
+        qemu_irq_pulse(xive->qirqs[srcno]);
+    }
+}
+
+static const MemoryRegionOps spapr_xive_esb_ops = {
+    .read = spapr_xive_esb_read,
+    .write = spapr_xive_esb_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 8,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 8,
+        .max_access_size = 8,
+    },
+};
+
+/*
  * XIVE Interrupt Source
  */
 static void spapr_xive_source_set_irq_msi(sPAPRXive *xive, int srcno, int val)
@@ -74,6 +286,33 @@ static void spapr_xive_source_set_irq(void *opaque, int srcno, int val)
 /*
  * Main XIVE object
  */
+#define P9_MMIO_BASE     0x006000000000000ull
+
+/* VC BAR contains set translations for the ESBs and the EQs. */
+#define VC_BAR_DEFAULT   0x10000000000ull
+#define VC_BAR_SIZE      0x08000000000ull
+#define ESB_SHIFT        16 /* One 64k page. OPAL has two */
+
+static uint64_t spapr_xive_esb_default_read(void *p, hwaddr offset,
+                                            unsigned size)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: 0x%" HWADDR_PRIx " [%u]\n",
+                  __func__, offset, size);
+    return 0;
+}
+
+static void spapr_xive_esb_default_write(void *opaque, hwaddr offset,
+                                         uint64_t value, unsigned size)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: 0x%" HWADDR_PRIx " <- 0x%" PRIx64 " [%u]\n",
+                  __func__, offset, value, size);
+}
+
+static const MemoryRegionOps spapr_xive_esb_default_ops = {
+    .read = spapr_xive_esb_default_read,
+    .write = spapr_xive_esb_default_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
 
 void spapr_xive_reset(void *dev)
 {
@@ -143,6 +382,22 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
      * for each thread in the system */
     xive->nr_eqs = xive->nr_targets * XIVE_EQ_PRIORITY_COUNT;
     xive->eqt = g_malloc0(xive->nr_eqs * sizeof(XiveEQ));
+
+    /* VC BAR. That's the full window but we will only map the
+     * subregions in use. */
+    xive->esb_base = (P9_MMIO_BASE | VC_BAR_DEFAULT);
+    xive->esb_shift = ESB_SHIFT;
+
+    /* Install default memory region handlers to log bogus access */
+    memory_region_init_io(&xive->esb_mr, NULL, &spapr_xive_esb_default_ops,
+                          NULL, "xive.esb.full", VC_BAR_SIZE);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &xive->esb_mr);
+
+    /* Install the ESB memory region in the overall one */
+    memory_region_init_io(&xive->esb_iomem, OBJECT(xive), &spapr_xive_esb_ops,
+                          xive, "xive.esb",
+                          (1ull << xive->esb_shift) * xive->nr_irqs);
+    memory_region_add_subregion(&xive->esb_mr, 0, &xive->esb_iomem);
 
     qemu_register_reset(spapr_xive_reset, dev);
 }
