@@ -162,7 +162,14 @@ static bool spapr_xive_tm_is_readonly(uint8_t index)
 static void spapr_xive_tm_write_special(ICPState *icp, hwaddr offset,
                                   uint64_t value, unsigned size)
 {
-    /* TODO: support TM_SPC_SET_OS_PENDING */
+    if (offset == TM_SPC_SET_OS_PENDING && size == 1) {
+        icp->tima_os[TM_IPB] |= priority_to_ipb(value & 0xff);
+        icp->tima_os[TM_PIPR] = ipb_to_pipr(icp->tima_os[TM_IPB]);
+        spapr_xive_icp_notify(icp);
+    } else {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid TIMA write @%"
+                      HWADDR_PRIx" size %d\n", offset, size);
+    }
 
     /* TODO: support TM_SPC_ACK_OS_EL */
 }
