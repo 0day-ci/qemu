@@ -3455,6 +3455,17 @@ static void spapr_phb_placement(sPAPRMachineState *spapr, uint32_t index,
     *mmio64 = SPAPR_PCI_BASE + (index + 1) * SPAPR_PCI_MEM64_WIN_SIZE;
 }
 
+static qemu_irq spapr_qirq_get(XICSFabric *dev, int irq)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(dev);
+
+    if (!ics_valid_irq(spapr->ics, irq)) {
+        return NULL;
+    }
+
+    return spapr->ics->qirqs[irq - spapr->ics->offset];
+}
+
 static ICSState *spapr_ics_get(XICSFabric *dev, int irq)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(dev);
@@ -3539,6 +3550,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     vhc->unmap_hptes = spapr_unmap_hptes;
     vhc->store_hpte = spapr_store_hpte;
     vhc->get_patbe = spapr_get_patbe;
+    xic->qirq_get = spapr_qirq_get;
     xic->ics_get = spapr_ics_get;
     xic->ics_resend = spapr_ics_resend;
     xic->icp_get = spapr_icp_get;

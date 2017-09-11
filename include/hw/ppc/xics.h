@@ -178,6 +178,7 @@ struct XICSFabric {
 
 typedef struct XICSFabricClass {
     InterfaceClass parent;
+    qemu_irq (*qirq_get)(XICSFabric *xi, int irq);
     ICSState *(*ics_get)(XICSFabric *xi, int irq);
     void (*ics_resend)(XICSFabric *xi);
     ICPState *(*icp_get)(XICSFabric *xi, int server);
