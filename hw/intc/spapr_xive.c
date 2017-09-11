@@ -807,3 +807,15 @@ bool spapr_xive_eq_for_target(sPAPRXive *xive, uint32_t target,
 
     return true;
 }
+
+void spapr_xive_mmio_map(sPAPRXive *xive)
+{
+    /* ESBs */
+    sysbus_mmio_map(SYS_BUS_DEVICE(xive), 0, xive->esb_base);
+
+    /* Thread Management Interrupt Areas */
+    /* TODO: Only map the OS TIMA for the moment. Mapping the whole
+     * region needs some rework in the handlers */
+    sysbus_mmio_map(SYS_BUS_DEVICE(xive), 1,
+                    xive->tm_base + (1 << xive->tm_shift));
+}
