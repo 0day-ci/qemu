@@ -227,6 +227,8 @@ static sPAPRXive *spapr_spapr_xive_create(sPAPRMachineState *spapr, int nr_irqs,
         goto error;
     }
 
+    spapr_xive_hcall_init(spapr);
+
     return SPAPR_XIVE(obj);
 error:
     error_propagate(errp, local_err);

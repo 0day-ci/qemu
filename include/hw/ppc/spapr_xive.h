@@ -66,4 +66,8 @@ struct sPAPRXive {
     MemoryRegion tm_iomem;
 };
 
+typedef struct sPAPRMachineState sPAPRMachineState;
+
+void spapr_xive_hcall_init(sPAPRMachineState *spapr);
+
 #endif /* PPC_SPAPR_XIVE_H */
