@@ -58,6 +58,7 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
     sPAPRXive *xive = SPAPR_XIVE(dev);
     Object *obj;
     Error *err = NULL;
+    int i;
 
     if (!xive->nr_targets) {
         error_setg(errp, "Number of interrupt targets needs to be greater 0");
@@ -79,6 +80,11 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
     }
 
     xive->ics = ICS_BASE(obj);
+
+    /* Allocate the last IRQ numbers for the IPIs */
+    for (i = xive->nr_irqs - xive->nr_targets; i < xive->nr_irqs; i++) {
+        ics_set_irq_type(xive->ics, i, false);
+    }
 
     /* Allocate SBEs (State Bit Entry). 2 bits, so 4 entries per byte */
     xive->sbe_size = DIV_ROUND_UP(xive->nr_irqs, 4);
