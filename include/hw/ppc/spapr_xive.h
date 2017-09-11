@@ -59,6 +59,11 @@ struct sPAPRXive {
     hwaddr       esb_base;
     MemoryRegion esb_mr;
     MemoryRegion esb_iomem;
+
+    /* TIMA memory region */
+    uint32_t     tm_shift;
+    hwaddr       tm_base;
+    MemoryRegion tm_iomem;
 };
 
 #endif /* PPC_SPAPR_XIVE_H */

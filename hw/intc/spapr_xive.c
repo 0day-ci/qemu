@@ -27,6 +27,154 @@
 
 #include "xive-internal.h"
 
+
+static uint64_t spapr_xive_icp_accept(ICPState *icp)
+{
+    return 0;
+}
+
+static void spapr_xive_icp_set_cppr(ICPState *icp, uint8_t cppr)
+{
+    if (cppr > XIVE_PRIORITY_MAX) {
+        cppr = 0xff;
+    }
+
+    icp->tima_os[TM_CPPR] = cppr;
+}
+
+/*
+ * Thread Interrupt Management Area MMIO
+ */
+static uint64_t spapr_xive_tm_read_special(ICPState *icp, hwaddr offset,
+                                     unsigned size)
+{
+    uint64_t ret = -1;
+
+    if (offset == TM_SPC_ACK_OS_REG && size == 2) {
+        ret = spapr_xive_icp_accept(icp);
+    } else {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid TIMA read @%"
+                      HWADDR_PRIx" size %d\n", offset, size);
+    }
+
+    return ret;
+}
+
+static uint64_t spapr_xive_tm_read(void *opaque, hwaddr offset, unsigned size)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
+    ICPState *icp = ICP(cpu->intc);
+    uint64_t ret = -1;
+    int i;
+
+    if (offset >= TM_SPC_ACK_EBB) {
+        return spapr_xive_tm_read_special(icp, offset, size);
+    }
+
+    if (offset & TM_QW1_OS) {
+        switch (size) {
+        case 1:
+        case 2:
+        case 4:
+        case 8:
+            if (QEMU_IS_ALIGNED(offset, size)) {
+                ret = 0;
+                for (i = 0; i < size; i++) {
+                    ret |= icp->tima[offset + i] << (8 * i);
+                }
+            } else {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "XIVE: invalid TIMA read alignment @%"
+                              HWADDR_PRIx" size %d\n", offset, size);
+            }
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    } else {
+        qemu_log_mask(LOG_UNIMP, "XIVE: does handle non-OS TIMA ring @%"
+                      HWADDR_PRIx"\n", offset);
+    }
+
+    return ret;
+}
+
+static bool spapr_xive_tm_is_readonly(uint8_t index)
+{
+    /* Let's be optimistic and prepare ground for HV mode support */
+    switch (index) {
+    case TM_QW1_OS + TM_CPPR:
+        return false;
+    default:
+        return true;
+    }
+}
+
+static void spapr_xive_tm_write_special(ICPState *icp, hwaddr offset,
+                                  uint64_t value, unsigned size)
+{
+    /* TODO: support TM_SPC_SET_OS_PENDING */
+
+    /* TODO: support TM_SPC_ACK_OS_EL */
+}
+
+static void spapr_xive_tm_write(void *opaque, hwaddr offset,
+                           uint64_t value, unsigned size)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
+    ICPState *icp = ICP(cpu->intc);
+    int i;
+
+    if (offset >= TM_SPC_ACK_EBB) {
+        spapr_xive_tm_write_special(icp, offset, value, size);
+        return;
+    }
+
+    if (offset & TM_QW1_OS) {
+        switch (size) {
+        case 1:
+            if (offset == TM_QW1_OS + TM_CPPR) {
+                spapr_xive_icp_set_cppr(icp, value & 0xff);
+            }
+            break;
+        case 4:
+        case 8:
+            if (QEMU_IS_ALIGNED(offset, size)) {
+                for (i = 0; i < size; i++) {
+                    if (!spapr_xive_tm_is_readonly(offset + i)) {
+                        icp->tima[offset + i] = (value >> (8 * i)) & 0xff;
+                    }
+                }
+            } else {
+                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid TIMA write @%"
+                              HWADDR_PRIx" size %d\n", offset, size);
+            }
+            break;
+        default:
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid TIMA write @%"
+                          HWADDR_PRIx" size %d\n", offset, size);
+        }
+    } else {
+        qemu_log_mask(LOG_UNIMP, "XIVE: does handle non-OS TIMA ring @%"
+                      HWADDR_PRIx"\n", offset);
+    }
+}
+
+
+static const MemoryRegionOps spapr_xive_tm_ops = {
+    .read = spapr_xive_tm_read,
+    .write = spapr_xive_tm_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
+
 static void spapr_xive_irq(sPAPRXive *xive, int srcno)
 {
 
@@ -293,6 +441,11 @@ static void spapr_xive_source_set_irq(void *opaque, int srcno, int val)
 #define VC_BAR_SIZE      0x08000000000ull
 #define ESB_SHIFT        16 /* One 64k page. OPAL has two */
 
+/* Thread Interrupt Management Area MMIO */
+#define TM_BAR_DEFAULT   0x30203180000ull
+#define TM_SHIFT         16
+#define TM_BAR_SIZE      (XIVE_TM_RING_COUNT * (1 << TM_SHIFT))
+
 static uint64_t spapr_xive_esb_default_read(void *p, hwaddr offset,
                                             unsigned size)
 {
@@ -402,6 +555,14 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
                           xive, "xive.esb",
                           (1ull << xive->esb_shift) * xive->nr_irqs);
     memory_region_add_subregion(&xive->esb_mr, 0, &xive->esb_iomem);
+
+    /* TM BAR. Same address for each chip */
+    xive->tm_base = (P9_MMIO_BASE | TM_BAR_DEFAULT);
+    xive->tm_shift = TM_SHIFT;
+
+    memory_region_init_io(&xive->tm_iomem, OBJECT(xive), &spapr_xive_tm_ops,
+                          xive, "xive.tm", TM_BAR_SIZE);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &xive->tm_iomem);
 
     qemu_register_reset(spapr_xive_reset, dev);
 }
