@@ -38,6 +38,7 @@ struct sPAPRXive {
 
     /* IRQ */
     ICSState     *ics;  /* XICS source inherited from the SPAPR machine */
+    qemu_irq     *qirqs;
 
     /* XIVE internal tables */
     uint8_t      *sbe;

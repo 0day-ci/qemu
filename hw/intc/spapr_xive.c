@@ -27,6 +27,50 @@
 
 #include "xive-internal.h"
 
+static void spapr_xive_irq(sPAPRXive *xive, int srcno)
+{
+
+}
+
+/*
+ * XIVE Interrupt Source
+ */
+static void spapr_xive_source_set_irq_msi(sPAPRXive *xive, int srcno, int val)
+{
+    if (val) {
+        spapr_xive_irq(xive, srcno);
+    }
+}
+
+static void spapr_xive_source_set_irq_lsi(sPAPRXive *xive, int srcno, int val)
+{
+    ICSIRQState *irq = &xive->ics->irqs[srcno];
+
+    if (val) {
+        irq->status |= XICS_STATUS_ASSERTED;
+    } else {
+        irq->status &= ~XICS_STATUS_ASSERTED;
+    }
+
+    if (irq->status & XICS_STATUS_ASSERTED
+        && !(irq->status & XICS_STATUS_SENT)) {
+        irq->status |= XICS_STATUS_SENT;
+        spapr_xive_irq(xive, srcno);
+    }
+}
+
+static void spapr_xive_source_set_irq(void *opaque, int srcno, int val)
+{
+    sPAPRXive *xive = SPAPR_XIVE(opaque);
+    ICSIRQState *irq = &xive->ics->irqs[srcno];
+
+    if (irq->flags & XICS_FLAGS_IRQ_LSI) {
+        spapr_xive_source_set_irq_lsi(xive, srcno, val);
+    } else {
+        spapr_xive_source_set_irq_msi(xive, srcno, val);
+    }
+}
+
 /*
  * Main XIVE object
  */
@@ -80,6 +124,8 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
     }
 
     xive->ics = ICS_BASE(obj);
+    xive->qirqs = qemu_allocate_irqs(spapr_xive_source_set_irq, xive,
+                                     xive->nr_irqs);
 
     /* Allocate the last IRQ numbers for the IPIs */
     for (i = xive->nr_irqs - xive->nr_targets; i < xive->nr_irqs; i++) {
