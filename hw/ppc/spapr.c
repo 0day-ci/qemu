@@ -44,6 +44,7 @@
 #include "mmu-hash64.h"
 #include "mmu-book3s-v3.h"
 #include "qom/cpu.h"
+#include "target/ppc/cpu-models.h"
 
 #include "hw/boards.h"
 #include "hw/ppc/ppc.h"
@@ -54,6 +55,7 @@
 #include "hw/ppc/spapr_vio.h"
 #include "hw/pci-host/spapr.h"
 #include "hw/ppc/xics.h"
+#include "hw/ppc/spapr_xive.h"
 #include "hw/pci/msi.h"
 
 #include "hw/pci/pci.h"
@@ -200,6 +202,35 @@ static void xics_system_init(MachineState *machine, int nr_irqs, Error **errp)
             pre_2_10_vmstate_register_dummy_icp(i);
         }
     }
+}
+
+static sPAPRXive *spapr_spapr_xive_create(sPAPRMachineState *spapr, int nr_irqs,
+                               int nr_servers, Error **errp)
+{
+    Error *local_err = NULL;
+    Object *obj;
+
+    obj = object_new(TYPE_SPAPR_XIVE);
+    object_property_add_child(OBJECT(spapr), "xive", obj, &error_abort);
+    object_property_add_const_link(obj, "ics", OBJECT(spapr->ics),
+                                   &error_abort);
+    object_property_set_int(obj, nr_irqs, "nr-irqs",  &local_err);
+    if (local_err) {
+        goto error;
+    }
+    object_property_set_int(obj, nr_servers, "nr-targets", &local_err);
+    if (local_err) {
+        goto error;
+    }
+    object_property_set_bool(obj, true, "realized", &local_err);
+    if (local_err) {
+        goto error;
+    }
+
+    return SPAPR_XIVE(obj);
+error:
+    error_propagate(errp, local_err);
+    return NULL;
 }
 
 static int spapr_fixup_cpu_smt_dt(void *fdt, int offset, PowerPCCPU *cpu,
@@ -1093,7 +1124,8 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     }
 
     QLIST_FOREACH(phb, &spapr->phbs, list) {
-        ret = spapr_populate_pci_dt(phb, PHANDLE_XICP, fdt, XICS_IRQS_SPAPR);
+        ret = spapr_populate_pci_dt(phb, PHANDLE_XICP, fdt,
+                                    XICS_IRQS_SPAPR + xics_max_server_number());
         if (ret < 0) {
             error_report("couldn't setup PCI devices in fdt");
             exit(1);
@@ -2140,6 +2172,16 @@ static void spapr_init_cpus(sPAPRMachineState *spapr)
     g_free(type);
 }
 
+/*
+ * Only POWER9 Processor chips support the XIVE interrupt controller
+ */
+static bool ppc_support_xive(MachineState *machine)
+{
+   PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(first_cpu);
+
+   return pcc->pvr_match(pcc, CPU_POWERPC_POWER9_BASE);
+}
+
 /* pSeries LPAR / sPAPR hardware init */
 static void ppc_spapr_init(MachineState *machine)
 {
@@ -2237,7 +2279,8 @@ static void ppc_spapr_init(MachineState *machine)
     load_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FW_OVERHEAD;
 
     /* Set up Interrupt Controller before we create the VCPUs */
-    xics_system_init(machine, XICS_IRQS_SPAPR, &error_fatal);
+    xics_system_init(machine, XICS_IRQS_SPAPR + xics_max_server_number(),
+                     &error_fatal);
 
     /* Set up containers for ibm,client-set-architecture negotiated options */
     spapr->ov5 = spapr_ovec_new();
@@ -2273,6 +2316,22 @@ static void ppc_spapr_init(MachineState *machine)
     spapr_cpu_parse_features(spapr);
 
     spapr_init_cpus(spapr);
+
+    /* Set up XIVE. CAS will choose whether the guest runs in XICS
+     * (legacy mode) or XIVE Exploitation mode
+     *
+     * We don't have KVM support yet, so check for irqchip=on
+     */
+    if (ppc_support_xive(machine)) {
+        if (kvm_enabled() && machine_kernel_irqchip_required(machine)) {
+            error_report("kernel_irqchip requested. no XIVE support");
+        } else {
+            spapr->xive = spapr_spapr_xive_create(spapr,
+                               XICS_IRQS_SPAPR + xics_max_server_number(),
+                               xics_max_server_number(),
+                               &error_fatal);
+        }
+    }
 
     if (kvm_enabled()) {
         /* Enable H_LOGICAL_CI_* so SLOF can talk to in-kernel devices */
