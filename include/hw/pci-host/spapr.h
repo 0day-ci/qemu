@@ -115,7 +115,7 @@ PCIHostState *spapr_create_phb(sPAPRMachineState *spapr, int index);
 
 int spapr_populate_pci_dt(sPAPRPHBState *phb,
                           uint32_t xics_phandle,
-                          void *fdt);
+                          void *fdt, int nr_irqs);
 
 void spapr_pci_rtas_init(void);
 

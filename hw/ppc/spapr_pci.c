@@ -2073,7 +2073,7 @@ static void spapr_phb_pci_enumerate(sPAPRPHBState *phb)
 
 int spapr_populate_pci_dt(sPAPRPHBState *phb,
                           uint32_t xics_phandle,
-                          void *fdt)
+                          void *fdt, int nr_irqs)
 {
     int bus_off, i, j, ret;
     char nodename[FDT_NAME_MAX];
@@ -2142,7 +2142,7 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     _FDT(fdt_setprop(fdt, bus_off, "ranges", &ranges, sizeof_ranges));
     _FDT(fdt_setprop(fdt, bus_off, "reg", &bus_reg, sizeof(bus_reg)));
     _FDT(fdt_setprop_cell(fdt, bus_off, "ibm,pci-config-space-type", 0x1));
-    _FDT(fdt_setprop_cell(fdt, bus_off, "ibm,pe-total-#msi", XICS_IRQS_SPAPR));
+    _FDT(fdt_setprop_cell(fdt, bus_off, "ibm,pe-total-#msi", nr_irqs));
 
     /* Dynamic DMA window */
     if (phb->ddw_enabled) {
