@@ -274,6 +274,7 @@ static const VMStateDescription vmstate_icp_server = {
         VMSTATE_UINT32(xirr, ICPState),
         VMSTATE_UINT8(pending_priority, ICPState),
         VMSTATE_UINT8(mfrr, ICPState),
+        VMSTATE_UINT8_ARRAY(tima, ICPState, 0x40),
         VMSTATE_END_OF_LIST()
     },
 };
@@ -293,6 +294,7 @@ static void icp_reset(void *dev)
     if (icpc->reset) {
         icpc->reset(icp);
     }
+    memset(icp->tima, 0, sizeof(icp->tima));
 }
 
 static void icp_realize(DeviceState *dev, Error **errp)
@@ -342,6 +344,8 @@ static void icp_realize(DeviceState *dev, Error **errp)
     if (icpc->realize) {
         icpc->realize(icp, errp);
     }
+
+    icp->tima_os = &icp->tima[0x10];
 
     qemu_register_reset(icp_reset, dev);
     vmstate_register(NULL, icp->cs->cpu_index, &vmstate_icp_server, icp);

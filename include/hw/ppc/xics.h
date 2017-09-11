@@ -83,6 +83,12 @@ struct ICPState {
     qemu_irq output;
 
     XICSFabric *xics;
+
+    /* XIVE section */
+#define XIVE_TM_RING_COUNT 4
+
+    uint8_t tima[XIVE_TM_RING_COUNT * 0x10];
+    uint8_t *tima_os;
 };
 
 #define ICP_PROP_XICS "xics"
