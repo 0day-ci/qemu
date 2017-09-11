@@ -175,9 +175,76 @@ static const MemoryRegionOps spapr_xive_tm_ops = {
     },
 };
 
+static void spapr_xive_eq_push(XiveEQ *eq, uint32_t data)
+{
+    uint64_t qaddr_base = (((uint64_t)(eq->w2 & 0x0fffffff)) << 32) | eq->w3;
+    uint32_t qsize = GETFIELD(EQ_W0_QSIZE, eq->w0);
+    uint32_t qindex = GETFIELD(EQ_W1_PAGE_OFF, eq->w1);
+    uint32_t qgen = GETFIELD(EQ_W1_GENERATION, eq->w1);
+
+    uint64_t qaddr = qaddr_base + (qindex << 2);
+    uint32_t qdata = cpu_to_be32((qgen << 31) | (data & 0x7fffffff));
+    uint32_t qentries = 1 << (qsize + 10);
+
+    if (dma_memory_write(&address_space_memory, qaddr, &qdata, sizeof(qdata))) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: failed to write EQ data @0x%"
+                      HWADDR_PRIx "\n", __func__, qaddr);
+        return;
+    }
+
+    qindex = (qindex + 1) % qentries;
+    if (qindex == 0) {
+        qgen ^= 1;
+        eq->w1 = SETFIELD(EQ_W1_GENERATION, eq->w1, qgen);
+    }
+    eq->w1 = SETFIELD(EQ_W1_PAGE_OFF, eq->w1, qindex);
+}
+
 static void spapr_xive_irq(sPAPRXive *xive, int srcno)
 {
+    XiveIVE *ive;
+    XiveEQ *eq;
+    uint32_t eq_idx;
+    uint32_t priority;
 
+    ive = spapr_xive_get_ive(xive, srcno);
+    if (!ive || !(ive->w & IVE_VALID)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid LISN %d\n", srcno);
+        return;
+    }
+
+    if (ive->w & IVE_MASKED) {
+        return;
+    }
+
+    /* Find our XiveEQ */
+    eq_idx = GETFIELD(IVE_EQ_INDEX, ive->w);
+    eq = spapr_xive_get_eq(xive, eq_idx);
+    if (!eq) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No EQ for LISN %d\n", srcno);
+        return;
+    }
+
+    if (eq->w0 & EQ_W0_ENQUEUE) {
+        spapr_xive_eq_push(eq, GETFIELD(IVE_EQ_DATA, ive->w));
+    } else {
+        qemu_log_mask(LOG_UNIMP, "XIVE: !ENQUEUE not implemented\n");
+    }
+
+    if (!(eq->w0 & EQ_W0_UCOND_NOTIFY)) {
+        qemu_log_mask(LOG_UNIMP, "XIVE: !UCOND_NOTIFY not implemented\n");
+    }
+
+    if (GETFIELD(EQ_W6_FORMAT_BIT, eq->w6) == 0) {
+        priority = GETFIELD(EQ_W7_F0_PRIORITY, eq->w7);
+
+        /* The EQ is masked. Can this happen ?  */
+        if (priority == 0xff) {
+            return;
+        }
+    } else {
+        qemu_log_mask(LOG_UNIMP, "XIVE: w7 format1 not implemented\n");
+    }
 }
 
 /*
