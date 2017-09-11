@@ -50,7 +50,24 @@ static uint8_t ipb_to_pipr(uint8_t ibp)
 
 static uint64_t spapr_xive_icp_accept(ICPState *icp)
 {
-    return 0;
+    uint8_t nsr = icp->tima_os[TM_NSR];
+
+    qemu_irq_lower(icp->output);
+
+    if (icp->tima_os[TM_NSR] & TM_QW1_NSR_EO) {
+        uint8_t cppr = icp->tima_os[TM_PIPR];
+
+        icp->tima_os[TM_CPPR] = cppr;
+
+        /* Reset the pending buffer bit */
+        icp->tima_os[TM_IPB] &= ~priority_to_ipb(cppr);
+        icp->tima_os[TM_PIPR] = ipb_to_pipr(icp->tima_os[TM_IPB]);
+
+        /* Drop Exception bit for OS */
+        icp->tima_os[TM_NSR] &= ~TM_QW1_NSR_EO;
+    }
+
+    return (nsr << 8) | icp->tima_os[TM_CPPR];
 }
 
 static void spapr_xive_icp_notify(ICPState *icp)
