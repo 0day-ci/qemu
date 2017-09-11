@@ -942,7 +942,8 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
 /* Prepare ibm,arch-vec-5-platform-support, which indicates the MMU features
  * that the guest may request and thus the valid values for bytes 24..26 of
  * option vector 5: */
-static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
+static void spapr_dt_ov5_platform_support(sPAPRMachineState *spapr,
+                                          void *fdt, int chosen)
 {
     PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
 
@@ -961,6 +962,13 @@ static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
         } else {
             val[3] = 0x00; /* Hash */
         }
+
+        /* TODO: introduce a kvmppc_has_cap_xive() ? Works with
+         * irqchip=off for now
+         */
+        if (spapr->xive) {
+            val[1] = 0x80; /* OV5_XIVE_BOTH */
+        }
     } else {
         if (first_ppc_cpu->env.mmu_model & POWERPC_MMU_V3) {
             /* V3 MMU supports both hash and radix (with dynamic switching) */
@@ -968,6 +976,9 @@ static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
         } else {
             /* Otherwise we can only do hash */
             val[3] = 0x00;
+        }
+        if (spapr->xive) {
+            val[1] = 0x80;  /* OV5_XIVE_BOTH */
         }
     }
     _FDT(fdt_setprop(fdt, chosen, "ibm,arch-vec-5-platform-support",
@@ -1027,7 +1038,7 @@ static void spapr_dt_chosen(sPAPRMachineState *spapr, void *fdt)
         _FDT(fdt_setprop_string(fdt, chosen, "linux,stdout-path", stdout_path));
     }
 
-    spapr_dt_ov5_platform_support(fdt, chosen);
+    spapr_dt_ov5_platform_support(spapr, fdt, chosen);
 
     g_free(stdout_path);
     g_free(bootlist);
@@ -1106,7 +1117,13 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     _FDT(fdt_setprop_cell(fdt, 0, "#size-cells", 2));
 
     /* /interrupt controller */
-    spapr_dt_xics(xics_max_server_number(), fdt, PHANDLE_XICP);
+    if (!spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
+        spapr_dt_xics(xics_max_server_number(), fdt, PHANDLE_XICP);
+    } else {
+        /* populate device tree for XIVE */ ;
+        spapr_xive_populate(spapr->xive, fdt, PHANDLE_XICP);
+        spapr_xive_mmio_map(spapr->xive);
+    }
 
     ret = spapr_populate_memory(spapr, fdt);
     if (ret < 0) {
@@ -1550,6 +1567,10 @@ static int spapr_post_load(void *opaque, int version_id)
             error_report("Process table config unsupported by the host");
             return -EINVAL;
         }
+    }
+
+    if (spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
+        spapr_xive_mmio_map(spapr->xive);
     }
 
     return err;
@@ -2332,6 +2353,7 @@ static void ppc_spapr_init(MachineState *machine)
                                XICS_IRQS_SPAPR + xics_max_server_number(),
                                xics_max_server_number(),
                                &error_fatal);
+            spapr_ovec_set(spapr->ov5, OV5_XIVE_EXPLOIT);
         }
     }
 
@@ -3461,6 +3483,11 @@ static qemu_irq spapr_qirq_get(XICSFabric *dev, int irq)
 
     if (!ics_valid_irq(spapr->ics, irq)) {
         return NULL;
+    }
+
+    /* use XIVE qirqs when XIVE exploitation mode is on */
+    if (spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
+        return spapr->xive->qirqs[irq - spapr->ics->offset];
     }
 
     return spapr->ics->qirqs[irq - spapr->ics->offset];
