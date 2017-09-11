@@ -40,6 +40,13 @@ struct sPAPRXive {
     ICSState     *ics;  /* XICS source inherited from the SPAPR machine */
     qemu_irq     *qirqs;
 
+    /* Interrupt source flags */
+#define XIVE_SRC_H_INT_ESB     (1ull << (63 - 60))
+#define XIVE_SRC_LSI           (1ull << (63 - 61))
+#define XIVE_SRC_TRIGGER       (1ull << (63 - 62))
+#define XIVE_SRC_STORE_EOI     (1ull << (63 - 63))
+    uint32_t     flags;
+
     /* XIVE internal tables */
     uint8_t      *sbe;
     uint32_t     sbe_size;

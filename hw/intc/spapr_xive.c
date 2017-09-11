@@ -371,6 +371,10 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
         ics_set_irq_type(xive->ics, i, false);
     }
 
+    /* All sources are emulated under the XIVE object and share the
+     * same characteristic */
+    xive->flags = XIVE_SRC_TRIGGER;
+
     /* Allocate SBEs (State Bit Entry). 2 bits, so 4 entries per byte */
     xive->sbe_size = DIV_ROUND_UP(xive->nr_irqs, 4);
     xive->sbe = g_malloc0(xive->sbe_size);
