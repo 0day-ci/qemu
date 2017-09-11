@@ -24,6 +24,7 @@
 typedef struct sPAPRXive sPAPRXive;
 typedef struct XiveIVE XiveIVE;
 typedef struct XiveEQ XiveEQ;
+typedef struct ICSState ICSState;
 
 #define TYPE_SPAPR_XIVE "spapr-xive"
 #define SPAPR_XIVE(obj) OBJECT_CHECK(sPAPRXive, (obj), TYPE_SPAPR_XIVE)
@@ -34,6 +35,9 @@ struct sPAPRXive {
     /* Properties */
     uint32_t     nr_targets;
     uint32_t     nr_irqs;
+
+    /* IRQ */
+    ICSState     *ics;  /* XICS source inherited from the SPAPR machine */
 
     /* XIVE internal tables */
     uint8_t      *sbe;

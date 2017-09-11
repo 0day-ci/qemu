@@ -56,6 +56,8 @@ void spapr_xive_reset(void *dev)
 static void spapr_xive_realize(DeviceState *dev, Error **errp)
 {
     sPAPRXive *xive = SPAPR_XIVE(dev);
+    Object *obj;
+    Error *err = NULL;
 
     if (!xive->nr_targets) {
         error_setg(errp, "Number of interrupt targets needs to be greater 0");
@@ -67,6 +69,16 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "Number of interrupts too small");
         return;
     }
+
+    /* Retrieve SPAPR ICS source to share the IRQ number allocator */
+    obj = object_property_get_link(OBJECT(dev), "ics", &err);
+    if (!obj) {
+        error_setg(errp, "%s: required link 'ics' not found: %s",
+                   __func__, error_get_pretty(err));
+        return;
+    }
+
+    xive->ics = ICS_BASE(obj);
 
     /* Allocate SBEs (State Bit Entry). 2 bits, so 4 entries per byte */
     xive->sbe_size = DIV_ROUND_UP(xive->nr_irqs, 4);
