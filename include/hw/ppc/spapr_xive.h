@@ -22,6 +22,8 @@
 #include <hw/sysbus.h>
 
 typedef struct sPAPRXive sPAPRXive;
+typedef struct XiveIVE XiveIVE;
+typedef struct XiveEQ XiveEQ;
 
 #define TYPE_SPAPR_XIVE "spapr-xive"
 #define SPAPR_XIVE(obj) OBJECT_CHECK(sPAPRXive, (obj), TYPE_SPAPR_XIVE)
@@ -32,6 +34,13 @@ struct sPAPRXive {
     /* Properties */
     uint32_t     nr_targets;
     uint32_t     nr_irqs;
+
+    /* XIVE internal tables */
+    uint8_t      *sbe;
+    uint32_t     sbe_size;
+    XiveIVE      *ivt;
+    XiveEQ       *eqt;
+    uint32_t     nr_eqs;
 };
 
 #endif /* PPC_SPAPR_XIVE_H */
