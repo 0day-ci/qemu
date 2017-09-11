@@ -28,9 +28,37 @@
 #include "xive-internal.h"
 
 
+/* Convert a priority number to an Interrupt Pending Buffer (IPB)
+ * register, which indicates a pending interrupt at the priority
+ * corresponding to the bit number
+ */
+static uint8_t priority_to_ipb(uint8_t priority)
+{
+    return priority > XIVE_PRIORITY_MAX ? 0 :  1 << (7 - priority);
+}
+
+/* Convert an Interrupt Pending Buffer (IPB) register to a Pending
+ * Interrupt Priority Register (PIPR), which contains the priority of
+ * the most favored pending notification.
+ *
+ * TODO: PIPR can never be OxFF. Needs a fix.
+ */
+static uint8_t ipb_to_pipr(uint8_t ibp)
+{
+    return ibp ? clz32((uint32_t)ibp << 24) : 0xff;
+}
+
 static uint64_t spapr_xive_icp_accept(ICPState *icp)
 {
     return 0;
+}
+
+static void spapr_xive_icp_notify(ICPState *icp)
+{
+    if (icp->tima_os[TM_PIPR] < icp->tima_os[TM_CPPR]) {
+        icp->tima_os[TM_NSR] |= TM_QW1_NSR_EO;
+        qemu_irq_raise(ICP(icp)->output);
+    }
 }
 
 static void spapr_xive_icp_set_cppr(ICPState *icp, uint8_t cppr)
@@ -40,6 +68,10 @@ static void spapr_xive_icp_set_cppr(ICPState *icp, uint8_t cppr)
     }
 
     icp->tima_os[TM_CPPR] = cppr;
+
+    /* CPPR has changed, inform the ICP which might raise an
+     * exception */
+    spapr_xive_icp_notify(icp);
 }
 
 /*
@@ -206,6 +238,8 @@ static void spapr_xive_irq(sPAPRXive *xive, int srcno)
     XiveEQ *eq;
     uint32_t eq_idx;
     uint32_t priority;
+    uint32_t target;
+    ICPState *icp;
 
     ive = spapr_xive_get_ive(xive, srcno);
     if (!ive || !(ive->w & IVE_VALID)) {
@@ -235,6 +269,13 @@ static void spapr_xive_irq(sPAPRXive *xive, int srcno)
         qemu_log_mask(LOG_UNIMP, "XIVE: !UCOND_NOTIFY not implemented\n");
     }
 
+    target = GETFIELD(EQ_W6_NVT_INDEX, eq->w6);
+    icp = xics_icp_get(xive->ics->xics, target);
+    if (!icp) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No ICP for target %d\n", target);
+        return;
+    }
+
     if (GETFIELD(EQ_W6_FORMAT_BIT, eq->w6) == 0) {
         priority = GETFIELD(EQ_W7_F0_PRIORITY, eq->w7);
 
@@ -242,9 +283,18 @@ static void spapr_xive_irq(sPAPRXive *xive, int srcno)
         if (priority == 0xff) {
             return;
         }
+
+        /* Update the IPB (Interrupt Pending Buffer) with the priority
+         * of the new notification and inform the ICP, which will
+         * decide to raise the exception, or not, depending the CPPR.
+         */
+        icp->tima_os[TM_IPB] |= priority_to_ipb(priority);
+        icp->tima_os[TM_PIPR] = ipb_to_pipr(icp->tima_os[TM_IPB]);
     } else {
         qemu_log_mask(LOG_UNIMP, "XIVE: w7 format1 not implemented\n");
     }
+
+    spapr_xive_icp_notify(icp);
 }
 
 /*
