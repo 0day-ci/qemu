@@ -199,7 +199,7 @@ error:
 
 static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
 {
-    sPAPRMachineState *spapr;
+    sPAPRMachineState *spapr = SPAPR_MACHINE_NOASSERT(qdev_get_machine());
     sPAPRCPUCore *sc = SPAPR_CPU_CORE(OBJECT(dev));
     sPAPRCPUCoreClass *scc = SPAPR_CPU_CORE_GET_CLASS(OBJECT(dev));
     CPUCore *cc = CPU_CORE(OBJECT(dev));
@@ -209,9 +209,8 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
     void *obj;
     int i, j;
 
-    spapr = (sPAPRMachineState *) qdev_get_machine();
-    if (!object_dynamic_cast((Object *) spapr, TYPE_SPAPR_MACHINE)) {
-        error_setg(errp, "spapr-cpu-core needs a pseries machine");
+    if (!spapr) {
+        error_setg(errp, TYPE_SPAPR_CPU_CORE " needs a pseries machine");
         return;
     }
 
