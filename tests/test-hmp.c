@@ -68,6 +68,7 @@ static const char *hmp_cmds[] = {
     "sum 0 512",
     "x /8i 0x100",
     "xp /16x 0",
+    "writeconfig /dev/null",
     NULL
 };
 
