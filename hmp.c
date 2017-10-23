@@ -2901,3 +2901,12 @@ void hmp_info_memory_size_summary(Monitor *mon, const QDict *qdict)
     }
     hmp_handle_error(mon, &err);
 }
+
+void hmp_writeconfig(Monitor *mon, const QDict *qdict)
+{
+     const char *file = qdict_get_str(qdict, "file");
+     Error *err = NULL;
+
+     qmp_writeconfig(file, &err);
+     hmp_handle_error(mon, &err);
+}

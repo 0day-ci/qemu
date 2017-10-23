@@ -1858,6 +1858,23 @@ ETEXI
         .sub_table  = info_cmds,
     },
 
+    {
+        .name       = "writeconfig",
+        .args_type  = "file:F",
+        .params     = "file",
+        .help       = "dump current configuration into specified file",
+        .cmd        = hmp_writeconfig,
+    },
+
+STEXI
+@item writeconfig @var{file}
+@findex writeconfig
+Dump current configuration into specified @var{file}.
+@example
+(qemu) writeconfig /tmp/qemu.conf
+@end example
+ETEXI
+
 STEXI
 @end table
 ETEXI
