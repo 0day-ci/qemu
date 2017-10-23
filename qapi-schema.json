@@ -3200,3 +3200,21 @@
 # Since: 2.11
 ##
 { 'command': 'watchdog-set-action', 'data' : {'action': 'WatchdogAction'} }
+
+##
+# @writeconfig:
+#
+# Dump current configuration into specified file
+#
+# @file: pathname of a file to store current configuration
+#
+# Since: 2.11
+#
+# Example:
+#
+# -> { "execute": "writeconfig",
+#      "arguments": { "file": "/tmp/qemu.conf" } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'writeconfig', 'data': {'file': 'str'} }

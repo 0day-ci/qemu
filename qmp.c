@@ -722,3 +722,24 @@ MemoryInfo *qmp_query_memory_size_summary(Error **errp)
 
     return mem_info;
 }
+
+void qmp_writeconfig(const char *file, Error **errp)
+{
+    int fd;
+    FILE *fp;
+
+    fd = qemu_open(file,  O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    if (fd != -1) {
+
+        fp = fdopen(fd, "wb");
+        if (fp) {
+            qemu_config_write(fp);
+            fclose(fp);
+            return;
+        }
+
+        qemu_close(fd);
+    }
+
+    error_setg(errp, "cannot write configuration file: '%s'", file);
+}
