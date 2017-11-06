@@ -148,7 +148,11 @@ extern int daemon(int, int);
 #define ESHUTDOWN 4099
 #endif
 #ifndef TIME_MAX
+#ifdef __OpenBSD__
+#define TIME_MAX LLONG_MAX
+#else
 #define TIME_MAX LONG_MAX
+#endif
 #endif
 
 /* HOST_LONG_BITS is the size of a native pointer in bits. */
