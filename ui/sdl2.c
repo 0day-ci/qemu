@@ -310,22 +310,26 @@ static void toggle_full_screen(struct sdl2_console *scon)
     sdl2_redraw(scon);
 }
 
-static void handle_keydown(SDL_Event *ev)
+static int get_mod_state(void)
 {
-    int mod_state, win;
-    struct sdl2_console *scon = get_scon_from_window(ev->key.windowID);
-
     if (alt_grab) {
-        mod_state = (SDL_GetModState() & (gui_grab_code | KMOD_LSHIFT)) ==
+        return (SDL_GetModState() & (gui_grab_code | KMOD_LSHIFT)) ==
             (gui_grab_code | KMOD_LSHIFT);
     } else if (ctrl_grab) {
-        mod_state = (SDL_GetModState() & KMOD_RCTRL) == KMOD_RCTRL;
+        return (SDL_GetModState() & KMOD_RCTRL) == KMOD_RCTRL;
     } else {
-        mod_state = (SDL_GetModState() & gui_grab_code) == gui_grab_code;
+        return (SDL_GetModState() & gui_grab_code) == gui_grab_code;
     }
-    gui_key_modifier_pressed = mod_state;
+}
 
-    if (gui_key_modifier_pressed) {
+static void handle_keydown(SDL_Event *ev)
+{
+    int win;
+    struct sdl2_console *scon = get_scon_from_window(ev->key.windowID);
+
+    gui_key_modifier_pressed = get_mod_state();
+
+    if (!scon->ignore_hotkeys && gui_key_modifier_pressed && !ev->key.repeat) {
         switch (ev->key.keysym.scancode) {
         case SDL_SCANCODE_2:
         case SDL_SCANCODE_3:
@@ -398,6 +402,8 @@ static void handle_keyup(SDL_Event *ev)
 {
     int mod_state;
     struct sdl2_console *scon = get_scon_from_window(ev->key.windowID);
+
+    scon->ignore_hotkeys = false;
 
     if (!alt_grab) {
         mod_state = (ev->key.keysym.mod & gui_grab_code);
@@ -545,6 +551,7 @@ static void handle_windowevent(SDL_Event *ev)
         if (!gui_grab && (qemu_input_is_absolute() || absolute_enabled)) {
             absolute_mouse_grab(scon);
         }
+        scon->ignore_hotkeys = get_mod_state();
         break;
     case SDL_WINDOWEVENT_FOCUS_LOST:
         if (gui_grab && !gui_fullscreen) {
