@@ -53,6 +53,12 @@ struct Coroutine {
 
     /* Only used when the coroutine has yielded.  */
     AioContext *ctx;
+
+    /* Used to catch and abort on illegal co-routine entry.
+     * Will contain the name of the function that had first
+     * scheduled the coroutine. */
+    const char *scheduled;
+
     QSIMPLEQ_ENTRY(Coroutine) co_queue_next;
     QSLIST_ENTRY(Coroutine) co_scheduled_next;
 };
