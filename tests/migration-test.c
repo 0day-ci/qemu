@@ -22,8 +22,8 @@
 
 #define MIN_NVRAM_SIZE 8192 /* from spapr_nvram.c */
 
-const unsigned start_address = 1024 * 1024;
-const unsigned end_address = 100 * 1024 * 1024;
+unsigned start_address = 1024 * 1024;
+unsigned end_address = 100 * 1024 * 1024;
 bool got_stop;
 
 #if defined(__linux__)
@@ -125,6 +125,18 @@ unsigned char bootsect[] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x55, 0xaa
 };
 
+unsigned char aarch64_kernel[] = {
+    0x00, 0x10, 0x38, 0xd5, 0x00, 0xf8, 0x7f, 0x92, 0x00, 0x10, 0x18, 0xd5,
+    0xdf, 0x3f, 0x03, 0xd5, 0x24, 0x08, 0x80, 0x52, 0x05, 0x20, 0xa1, 0xd2,
+    0xa4, 0x00, 0x00, 0x39, 0x06, 0x00, 0x80, 0x52, 0x03, 0xc8, 0xa8, 0xd2,
+    0x02, 0x02, 0xa8, 0xd2, 0x41, 0x00, 0x40, 0x39, 0x21, 0x04, 0x00, 0x11,
+    0x41, 0x00, 0x00, 0x39, 0x42, 0x04, 0x40, 0x91, 0x5f, 0x00, 0x03, 0xeb,
+    0x6b, 0xff, 0xff, 0x54, 0xc6, 0x04, 0x00, 0x11, 0xc6, 0x1c, 0x00, 0x12,
+    0xdf, 0x00, 0x00, 0x71, 0xc1, 0xfe, 0xff, 0x54, 0x44, 0x08, 0x80, 0x52,
+    0x05, 0x20, 0xa1, 0xd2, 0xa4, 0x00, 0x00, 0x39, 0xf2, 0xff, 0xff, 0x97
+};
+unsigned int aarch64_kernel_len = 96;
+
 static void init_bootfile_x86(const char *bootpath)
 {
     FILE *bootfile = fopen(bootpath, "wb");
@@ -161,6 +173,15 @@ static void init_bootfile_ppc(const char *bootpath)
     bootfile = fopen(bootpath, "wb");
     g_assert_cmpint(fwrite(buf, MIN_NVRAM_SIZE, 1, bootfile), ==, 1);
     fclose(bootfile);
+}
+
+static void init_bootfile_aarch64(const char *bootpath)
+{
+    FILE *kernelfile = fopen(bootpath, "wb");
+
+    g_assert_cmpint(fwrite(aarch64_kernel, aarch64_kernel_len, 1, kernelfile),
+                    ==, 1);
+    fclose(kernelfile);
 }
 
 /*
@@ -470,6 +491,22 @@ static void test_migrate_start(QTestState **from, QTestState **to,
                                   " -serial file:%s/dest_serial"
                                   " -incoming %s",
                                   accel, tmpfs, uri);
+    } else if (strcmp(arch, "aarch64") == 0) {
+        init_bootfile_aarch64(bootpath);
+        cmd_src = g_strdup_printf("-machine virt,accel=kvm:cg -m 1024M"
+                                  " -name vmsource,debug-threads=on -cpu host"
+                                  " -serial file:%s/src_serial "
+                                  " -kernel %s ",
+                                  tmpfs, bootpath);
+        cmd_dst = g_strdup_printf("-machine virt,accel=kvm:tcg -m 1024M"
+                                  " -name vmdest,debug-threads=on -cpu host"
+                                  " -serial file:%s/dest_serial"
+                                  " -kernel %s"
+                                  " -incoming %s",
+                                  tmpfs, bootpath, uri);
+        /* aarch64 virt machine physical mem started from 0x40000000 */
+        start_address += 0x40000000;
+        end_address += 0x40000000;
     } else {
         g_assert_not_reached();
     }
@@ -530,7 +567,7 @@ static void test_migrate(void)
      * machine, so also set the downtime.
      */
     migrate_set_speed(from, "100000000");
-    migrate_set_downtime(from, 0.001);
+    migrate_set_downtime(from, 0.1);
 
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
