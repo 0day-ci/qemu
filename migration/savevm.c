@@ -2242,6 +2242,11 @@ int save_snapshot(const char *name, Error **errp)
     return ret;
 }
 
+void qmp_save_snapshot(const char *name, Error **errp)
+{
+    save_snapshot(name, errp);
+}
+
 void qmp_xen_save_devices_state(const char *filename, bool has_live, bool live,
                                 Error **errp)
 {
@@ -2402,6 +2407,28 @@ int load_snapshot(const char *name, Error **errp)
 err_drain:
     bdrv_drain_all_end();
     return ret;
+}
+
+void qmp_load_snapshot(const char *name, Error **errp)
+{
+    int saved_vm_running = runstate_is_running();
+
+    vm_stop(RUN_STATE_RESTORE_VM);
+
+    if (!load_snapshot(name, errp) && saved_vm_running) {
+        vm_start();
+    }
+}
+
+void qmp_delete_snapshot(const char *name, Error **errp)
+{
+    BlockDriverState *bs;
+
+    if (bdrv_all_delete_snapshot(name, &bs, errp) < 0) {
+        error_prepend(errp,
+                      "Error while deleting snapshot on device '%s': ",
+                      bdrv_get_device_name(bs));
+    }
 }
 
 void vmstate_register_ram(MemoryRegion *mr, DeviceState *dev)

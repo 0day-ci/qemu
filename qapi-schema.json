@@ -1126,6 +1126,72 @@
   'data': {'val': 'int', 'size': 'int', 'filename': 'str'} }
 
 ##
+# @save-snapshot:
+#
+# Save a snapshot of the entire Virtual Machine
+#
+# @name: A string identifying the snapshot. This can later be used with
+#        @load-snapshot or @delete-snapshot
+#
+# Since: 2.12.0
+#
+# Returns: If successful, nothing
+#
+# Notes: The equivalent HMP command is savevm. This stores all of the virtual
+#        machine's current state within the virtual machine's
+#        image(s)/storage. If the VM is currently running, this includes the
+#        state of the CPU and RAM. Later the VM can be reverted to this state.
+#
+#        qemu-img can also be used to manipulate snapshots.
+#
+# Examples:
+#
+# -> { "execute": "save-snapshot", "arguments": { "name": "lastgood" } }
+# <- { "return": {} }
+##
+{ 'command': 'save-snapshot',
+  'data': {'name': 'str'} }
+
+##
+# @load-snapshot:
+#
+# Load a snapshot of the entire Virtual Machine, completely reverting it to
+# that state
+#
+# Since: 2.12.0
+#
+# Returns: If successful, nothing
+#
+# Notes: The equivalent HMP command is loadvm. See the @save-snapshot notes.
+#
+# Examples:
+#
+# -> { "execute": "load-snapshot", "arguments": { "name": "lastgood" } }
+# <- { "return": {} }
+##
+{ 'command': 'load-snapshot',
+  'data': {'name': 'str'} }
+
+##
+# @delete-snapshot:
+#
+# Delete a VM snapshot
+#
+# Since: 2.12.0
+#
+# Returns: If successful, nothing
+#
+# Notes: The equivalent HMP command is delvm. See the @save-snapshot notes.
+#
+# Examples:
+#
+# -> { "execute": "delete-snapshot", "arguments": { "name": "lastgood" } }
+# <- { "return": {} }
+##
+{ 'command': 'delete-snapshot',
+  'data': {'name': 'str'} }
+
+##
 # @cont:
 #
 # Resume guest VCPU execution.
