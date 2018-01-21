@@ -21,6 +21,7 @@
 #include "hw/hw.h"
 #include "hw/i2c/pm_smbus.h"
 #include "hw/i2c/smbus.h"
+#include "qemu/timer.h"
 
 /* no save/load? */
 
@@ -53,8 +54,9 @@
 #endif
 
 
-static void smb_transaction(PMSMBus *s)
+static void smb_transaction(void *opaque)
 {
+    PMSMBus *s = opaque;
     uint8_t prot = (s->smb_ctl >> 2) & 0x07;
     uint8_t read = s->smb_addr & 0x01;
     uint8_t cmd = s->smb_cmd;
@@ -139,9 +141,10 @@ error:
 
 static void smb_transaction_start(PMSMBus *s)
 {
-    /* Do not execute immediately the command ; it will be
-     * executed when guest will read SMB_STAT register */
+    /* Do not execute immediately the command */
     s->smb_stat |= STS_HOST_BUSY;
+    timer_mod(s->result_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)
+              + (NANOSECONDS_PER_SECOND / 1000));
 }
 
 static void smb_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
@@ -191,10 +194,6 @@ static uint64_t smb_ioport_readb(void *opaque, hwaddr addr, unsigned width)
     switch(addr) {
     case SMBHSTSTS:
         val = s->smb_stat;
-        if (s->smb_stat & STS_HOST_BUSY) {
-            /* execute command now */
-            smb_transaction(s);
-        }
         break;
     case SMBHSTCNT:
         s->smb_index = 0;
@@ -238,4 +237,6 @@ void pm_smbus_init(DeviceState *parent, PMSMBus *smb)
     smb->smbus = i2c_init_bus(parent, "i2c");
     memory_region_init_io(&smb->io, OBJECT(parent), &pm_smbus_ops, smb,
                           "pm-smbus", 64);
+    smb->result_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                     smb_transaction, smb);
 }

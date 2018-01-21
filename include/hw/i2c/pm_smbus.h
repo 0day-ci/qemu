@@ -4,6 +4,7 @@
 typedef struct PMSMBus {
     I2CBus *smbus;
     MemoryRegion io;
+    QEMUTimer *result_timer;
 
     uint8_t smb_stat;
     uint8_t smb_ctl;
